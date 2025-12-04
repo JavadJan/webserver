@@ -1,57 +1,6 @@
 #include "../include/server.hpp"
 #include "../include/ParsedData.hpp"
-
-enum STATE FSM(char buffer[], temp_data *data)
-{
-	(void)buffer;
-	(void)data;
-	std::string bufr = buffer;
-
-	STATE state = REQ_LINE;
-	while (state != DONE)
-	{
-		switch (state)
-		{
-		case REQ_LINE:
-		{
-			// fill method, version, path
-			std::cout << "parsing the req_line\n";
-			if (bufr.find("GET") == std::string::npos)
-				state = ERROR;
-			//state = HEADER;
-			break ;
-		}
-		case HEADER:
-		{
-			std::cout << "parsing the header\n";
-			state = BODY;
-			// if exist key value it is header
-			break ;
-		}
-		case BODY:
-		{
-			std::cout << "parsing the body\n";
-			//state = DONE;
-			break;
-		}
-		case DONE:
-		{
-			std::cout << "parsing the DONE\n";
-			state = ERROR;
-			break;
-		}
-		case ERROR:
-		{
-			std::cout << "ERROR\n";
-			return ERROR;
-			break;
-		}
-		default:
-			break ;
-		}
-	}
-	return DONE;
-}
+#include <fcntl.h>
 
 int	main(void)
 {
@@ -67,6 +16,8 @@ int	main(void)
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (!sockfd)
 		printf("failed to creation socket\n");
+	// convert socket to non-blocking, bloked: the program exe line-by-line then wait for client, if not client it wait forever
+	fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
 	//--------------------------#
 	//   		fill IP info    #
@@ -91,7 +42,11 @@ int	main(void)
 			&client_len);
 
 	// 5. Communicate
-	recv(client_fd, buffer, sizeof(buffer), 0);
+	int res = recv(client_fd, buffer, sizeof(buffer), 0);
+	if (res == -1)
+        std::cerr << "recv failed: " << strerror(errno) << std::endl;
+	else if (res == 0)
+		std::cout << "remote connection has closed!\n" << std::endl;
 
 	// run FSM, and parse buffer with state machine
 	temp_data data;
@@ -99,10 +54,12 @@ int	main(void)
 		std::cout << "return bad request page error\n";
 
 	send(client_fd, "Hello from server!", 18, 0);
+
 	const char *response = "Hello from server!";
 	printf("[SERVER] Sent: %s\n", response);
 
 	// 6. Close
 	close(client_fd);
 	close(sockfd);
+	return 0;
 }

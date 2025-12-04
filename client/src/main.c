@@ -9,10 +9,15 @@ int	main(void)
 	int sockfd;
 	struct sockaddr_in server_addr;
 	char buffer[1024];
-	const char *message = "Hello from client!";
+	const char *message = "GET /images/logo.png HTTP/1.1\r\n"
+		"Host: localhost\r\n"
+		"Content-Length: 42\r\n"
+		"Content-Type: text/plain\r\n"
+		"\r\n"
+		"Hello,\nthis is the body... ";
 
-	// 1. Create socket
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		// 1. Create socket
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
 	// 2. Connect
 	server_addr.sin_family = AF_INET;
@@ -21,15 +26,15 @@ int	main(void)
 	connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
 	// 4. Send message
-    send(sockfd, message, strlen(message), 0);
-    printf("[CLIENT] Sent: %s\n", message);
+	send(sockfd, message, strlen(message), 0);
+	printf("[CLIENT] Sent: %s\n", message);
 
-    // 5. Receive reply
-    recv(sockfd, buffer, sizeof(buffer), 0);
-    printf("[CLIENT] Received: %s\n", buffer);
+	// 5. Receive reply
+	recv(sockfd, buffer, sizeof(buffer), 0);
+	printf("[CLIENT] Received: %s\n", buffer);
 
-    // 6. Close
-    close(sockfd);
+	// 6. Close
+	close(sockfd);
 
 	// 4. Close
 	close(sockfd);

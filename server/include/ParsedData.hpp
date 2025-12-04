@@ -4,6 +4,10 @@
 #include "./server.hpp"
 #include <iostream>
 #include <map>
+#include <sstream>
+#include <cerrno>
+#include <algorithm> // for std::transform
+#include <cctype>    // for std::tolower
 
 enum	STATE
 {
@@ -18,8 +22,8 @@ typedef struct data{
 	std::string method;
 	std::string path;
 	std::string protocol;
-	std::map<std::string, std::string>	header;
-	std::map<std::string, std::string>	body;
+	std::pair<std::string, std::pair<std::string, std::string> >	header; // host : "127.0.0.1:8080"
+	std::string	body;
 } temp_data;
 
 class ParsedData
@@ -39,5 +43,5 @@ class ParsedData
 };
 
 enum STATE FSM(char buffer[], temp_data *data);
-
+bool isMethod(std::string method);
 #endif
