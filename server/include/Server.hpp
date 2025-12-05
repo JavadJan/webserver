@@ -15,6 +15,8 @@
 #include <poll.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <sstream>
+#include <string>
 
 #define PORT 4242
 
@@ -30,21 +32,20 @@ class Server{
 		int client_fd;
 
 		/* for non-blocking */
-		struct pollfd *poll_fds;
-		int poll_count;
-		int poll_size;
+		std::vector<pollfd> poll_fds;
+		int poll_count; 
 		void accept_new_connection();
 		void add_to_poll_fds(int new_fd);
 		void del_from_poll_fds(int i);
 		void read_data_from_socket(int i); // parsing heppen here
 		int create_socket_bind();
 		public:
-		Server(Config config);
-		void run();
-		class ExceptionServer: public std::exception{
-			public:
-				const char *what() const throw();
-		};
+			Server(Config config);
+			void run();
+			class ExceptionServer: public std::exception{
+				public:
+					const char *what() const throw();
+			};
 };
 
 

@@ -12,7 +12,7 @@ Server::Server(Config conf):_port(conf.getPort()),client_len(sizeof(client_addr)
 
 	/* for non-blocking */
 	poll_count = 1;
-	poll_size = 5;
+	//poll_size = 5;
 }
 
 int Server::create_socket_bind()
@@ -35,7 +35,7 @@ int Server::create_socket_bind()
 	status = listen(server_fd, 10);
 	if (status != 0)
 	{
-		fprintf(stderr, "[Server] Listen error: %s\n", strerror(errno));
+		std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
 		return (3);
 	}
 	//run();
@@ -47,26 +47,23 @@ void Server::run()
 	create_socket_bind();
 	int status;
 
-	poll_size = 5;
-	poll_fds = (struct pollfd *)calloc(poll_size + 1, sizeof *poll_fds);
-	if (!poll_fds)
-	{
-		//return (4);
-		throw std::runtime_error("[Server]: detect fd error");
-	}
-	// Add the listening server socket to array
-	// with notification when the socket can be read
-	poll_fds[0].fd = server_fd;
-	poll_fds[0].events = POLLIN;
-	poll_count = 1;
+	poll_fds.clear();
 
+    pollfd serverPoll;
+    serverPoll.fd = server_fd;
+    serverPoll.events = POLLIN;
+    serverPoll.revents = 0;
+
+    poll_fds.push_back(serverPoll);
 	while (1)
 	{ // Main loop
 		// Poll sockets to see if they are ready (2 second timeout)
-		status = poll(poll_fds, poll_count, 2000);
+		for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
+        	it->revents = 0;
+		status = poll(poll_fds.data(), poll_fds.size(), 2000);
 		if (status == -1)
 		{
-			std::cout << "[Server] Poll error: \n" << strerror(errno);
+			std::cerr << "[Server] Poll error: \n" << strerror(errno);
 			throw ExceptionServer();
 		}
 		else if (status == 0)
@@ -76,15 +73,10 @@ void Server::run()
 			continue ;
 		}
 		// Loop on our array of sockets
-		for (int i = 0; i < poll_count; i++)
+		for (size_t i = 0; i < poll_fds.size(); i++)
 		{
-			if ((poll_fds[i].revents & POLLIN) != 1)
-			{
-				// The socket is not ready for reading
-				// stop here and continue the loop
-				continue ;
-			}
-			//printf("[%d] Ready for I/O operation\n", poll_fds[i].fd);
+			if (!(poll_fds[i].revents & POLLIN))
+				continue;
 			// The socket is ready for reading!
 			if (poll_fds[i].fd == server_fd)
 			{
@@ -107,8 +99,8 @@ const char* Server::ExceptionServer::what() const throw(){
  // our server's port
 void	Server::accept_new_connection()
 {
-	int		client_fd;
-	char	msg_to_send[BUFSIZ];
+	//char	msg_to_send[BUFSIZ];
+	std::string msg_to_send;
 	int		status;
 
 	client_fd = accept(server_fd, NULL, NULL);
@@ -117,16 +109,21 @@ void	Server::accept_new_connection()
 		std::cerr << "[Server] Accept error: \n" << strerror(errno);
 		return ;
 	}
+
 	add_to_poll_fds(client_fd); // no need to pass this fd
-	printf("[Server] Accepted new connection on client socket %d.\n",
-		client_fd);
-	memset(&msg_to_send, '\0', sizeof msg_to_send);
-	sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", client_fd);
-	status = send(client_fd, msg_to_send, strlen(msg_to_send), 0);
+	std::cout << "[Server] Accepted new connection on client socket" <<  client_fd << std::endl;
+	//memset(&msg_to_send, '\0', sizeof msg_to_send);
+
+	//sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", client_fd);
+	std::ostringstream oss;
+	oss << "[" << client_fd << "] says: " << buffer;
+	msg_to_send = oss.str();
+
+	status = send(client_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
+	//status = send(client_fd, msg_to_send, strlen(msg_to_send), 0);
 	if (status == -1)
 	{
-		fprintf(stderr, "[Server] Send error to client %d: %s\n", client_fd,
-			strerror(errno));
+		std::cout << "[Server] Send error to client" << client_fd << strerror(errno) << std::endl;
 	}
 }
 
@@ -135,13 +132,14 @@ void	Server::read_data_from_socket(int i)
 	char	buffer[BUFSIZ];
 	char	msg_to_send[BUFSIZ];
 	int		bytes_read;
-	int		status;
+	int		status = 0;
 	int		dest_fd;
 	int		sender_fd;
 
 	sender_fd = poll_fds[i].fd;
 	memset(&buffer, '\0', sizeof buffer);
 	bytes_read = recv(sender_fd, buffer, BUFSIZ, 0);
+
 	if (bytes_read <= 0)
 	{
 		if (bytes_read == 0)
@@ -159,17 +157,21 @@ void	Server::read_data_from_socket(int i)
 	{
 		// Relays the received message to all connected sockets
 		// but not to the server socket or the sender socket
-		printf("[%d] Got message: %s", sender_fd, buffer);
+		std::cout << "[" << sender_fd << "] Got message: " << buffer;
 		memset(&msg_to_send, '\0', sizeof msg_to_send);
 		//sprintf(msg_to_send, "[%d] says: %s", sender_fd, buffer);
-		snprintf(msg_to_send, sizeof(msg_to_send), "[%d] says: %s", sender_fd,
-			buffer);
-		for (int j = 0; j < poll_count; j++)
+		//snprintf(msg_to_send, sizeof(msg_to_send), "[%d] says: %s", sender_fd,
+		//	buffer);
+		std::ostringstream oss;
+		oss << "[" << sender_fd << "] says: " << buffer;
+		std::string msg_to_send = oss.str();
+		for (size_t j = 0; j < poll_fds.size(); j++)
 		{
 			dest_fd = (poll_fds)[j].fd;
 			if (dest_fd != server_fd && dest_fd != sender_fd)
 			{
-				status = send(dest_fd, msg_to_send, strlen(msg_to_send), 0);
+				//status = send(dest_fd, msg_to_send., strlen(msg_to_send), 0);
+				status = send(sender_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
 				if (status == -1)
 				{
 					fprintf(stderr, "[Server] Send error to client fd %d: %s\n",
@@ -180,25 +182,18 @@ void	Server::read_data_from_socket(int i)
 	}
 }
 
-// Add a new file descriptor to the pollfd array
-void	Server::add_to_poll_fds(int new_fd)
+void Server::add_to_poll_fds(int new_fd)
 {
-	// If there is not enough room, reallocate the poll_fds array
-	if (poll_count == poll_size)
-	{
-		poll_size *= 2; // Double its size
-		poll_fds = (struct pollfd *)realloc(poll_fds, sizeof(*poll_fds)
-				* (poll_size));
-	}
-	(poll_fds)[poll_count].fd = new_fd;
-	(poll_fds)[poll_count].events = POLLIN;
-	(poll_count)++;
+    pollfd p;
+    p.fd = new_fd;
+    p.events = POLLIN;
+    p.revents = 0;
+
+    poll_fds.push_back(p);
 }
 
-// Remove an fd from the poll_fds array
-void	Server::del_from_poll_fds(int i)
+void Server::del_from_poll_fds(int i)
 {
-	// Copy the fd from the end of the array to this index
-	(poll_fds)[i] = (poll_fds)[poll_count - 1];
-	(poll_count)--;
+    poll_fds[i] = poll_fds.back();
+    poll_fds.pop_back();
 }

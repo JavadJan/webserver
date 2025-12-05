@@ -1,5 +1,5 @@
 #include "../include/Config.hpp"
-Config::Config():port(4242), host("127.0.0.1")
+Config::Config():port(4545), host("127.0.0.1")
 {
 
 }
