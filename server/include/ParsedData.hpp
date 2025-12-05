@@ -1,7 +1,7 @@
 #ifndef ParsedData_hpp
 # define ParsedData_hpp
 
-#include "./server.hpp"
+//#include "./server.hpp"
 #include <iostream>
 #include <map>
 #include <sstream>

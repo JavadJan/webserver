@@ -54,13 +54,14 @@ FLAGS = -Wall -Wextra -Werror -Iinclude -std=c++98
 NAME = server
 
 H = include/
-HEADER = $(H)server.hpp \
-         $(H)ParsedData.hpp
+HEADER = $(H)Server.hpp \
+         $(H)ParsedData.hpp\
+         $(H)Config.hpp\
 
 OBJ_F = obj/
 SRC_F = src/
 
-SRC = ParsedData.cpp main.cpp
+SRC = ParsedData.cpp Server.cpp main.cpp Config.cpp
 OBJ = $(SRC:.cpp=.o)
 OBJ_P = $(addprefix $(OBJ_F), $(OBJ))
 
@@ -83,6 +84,6 @@ clean:
 fclean: clean
 	rm -f $(NAME)
 
-re: fclean all
+re: fclean $(NAME)
 
 .PHONY: all clean fclean re
