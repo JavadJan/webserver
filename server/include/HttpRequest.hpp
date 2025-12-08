@@ -11,14 +11,7 @@
 #include <map>
 #include <ostream>
 
-enum	STATE
-{
-	REQ_LINE,
-	HEADER,
-	BODY,
-	DONE,
-	ERROR
-};
+
 
 typedef struct data{
 } temp_data;
@@ -57,8 +50,6 @@ class HttpRequest
 
 };
 
-HttpRequest ParseFSM(std::string recv);
-void fsm(std::string recieve, enum STATE *state);
 
 bool isMethod(std::string method);
 

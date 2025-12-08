@@ -61,6 +61,7 @@ void Server::run()
 		// Poll sockets to see if they are ready (2 second timeout)
 		for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
         	it->revents = 0;
+
 		status = poll(poll_fds.data(), poll_fds.size(), 2000);
 
 		if (status == -1)
@@ -72,13 +73,15 @@ void Server::run()
 		{
 			// None of the sockets are ready
 			std::cout << "[Server on port: " << _port << "] listening ... " << std::endl;
-			continue ; // skip the rest of loop after this line
+			continue ; // skip the rest of loop after this line, start again to socket
 		}
 		// Loop on our array of sockets
 		for (size_t i = 0; i < poll_fds.size(); i++)
 		{
+			// if there was not client socket
 			if (!(poll_fds[i].revents & POLLIN))
 				continue;
+
 			// The socket is ready for reading!
 			if (poll_fds[i].fd == server_fd)
 			{
@@ -88,11 +91,12 @@ void Server::run()
 			}
 			else
 			{
+				std::cout <<"client fd" << client_fd << "------------------" << i << std::endl;
 				// Socket is a client socket, read it
 				HttpRequest request;
 				// in reading time create HttpRequest obj
 				read_data_from_socket(i, request);
-				std::cout << "\n\nHTTP REQ: " << request << std::endl;
+				
 			}
 		}
 	}
@@ -131,6 +135,10 @@ void	Server::accept_new_connection()
 	{
 		std::cout << "[Server] Send error to client" << client_fd << strerror(errno) << std::endl;
 	}
+
+	clientState[client_fd] = REQ_LINE;
+	recvBuffer[client_fd].clear();
+
 }
 
 void	Server::read_data_from_socket(int i, HttpRequest &request)
@@ -148,9 +156,9 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 	sender_fd = poll_fds[i].fd;
 	memset(&buffer, '\0', sizeof(buffer));
 	bytes_read = recv(sender_fd, buffer, BUFSIZ, 0);
-	STATE &state = clientState[sender_fd];   // existing or default-created
-	if (state == DONE || state == ERROR) {
-		state = REQ_LINE;                   // fresh start for new request
+
+	if (clientState[sender_fd] == DONE || clientState[sender_fd] == ERROR) {
+		clientState[sender_fd] = REQ_LINE;                   // fresh start for new request
 	}
 	
 
@@ -170,16 +178,18 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 		// but not to the server socket or the sender socket
 		std::cout << "[" << sender_fd << "] Got message: start ----->\n" << buffer << "\n<----------end request\n";
 		recvBuffer[sender_fd].append(buffer, bytes_read); // append to cleint_fd
-		std::cout << "send to fsm: " << recvBuffer[sender_fd] << std::endl;
+		//std::cout << "send to fsm: " << recvBuffer[sender_fd] << std::endl;
 		
-		fsm(recvBuffer[sender_fd], &state);
-		std::cout << "state: " << state << std::endl;
-		if (state == DONE)
+		fsm(recvBuffer[sender_fd], sender_fd);
+
+		//std::cout << "state: " << clientState[sender_fd] << std::endl;
+
+		if (clientState[sender_fd] == DONE)
 		{
 			request = ParseFSM(recvBuffer[sender_fd]); // attention here for fsm
 			recvBuffer[sender_fd].clear();
-			state = REQ_LINE;
-
+			clientState[sender_fd] = REQ_LINE;
+			std::cout << "\n\nHTTP REQ: " << request << std::endl;
 		}
 
 
