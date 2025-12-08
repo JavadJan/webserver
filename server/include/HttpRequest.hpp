@@ -57,7 +57,9 @@ class HttpRequest
 
 };
 
-HttpRequest FSM(char buffer[]);
+HttpRequest ParseFSM(std::string recv);
+void fsm(std::string recieve, enum STATE *state);
+
 bool isMethod(std::string method);
 
 //std::ostream& operator<<(std::ostream& out, HttpRequest& http);

@@ -142,20 +142,25 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 	int		dest_fd;
 	int		sender_fd;
 
-	sender_fd = poll_fds[i].fd;
-	memset(&buffer, '\0', sizeof buffer);
-	bytes_read = recv(sender_fd, buffer, BUFSIZ, 0);
+	
 
-	if (bytes_read <= 0)
+
+	sender_fd = poll_fds[i].fd;
+	memset(&buffer, '\0', sizeof(buffer));
+	bytes_read = recv(sender_fd, buffer, BUFSIZ, 0);
+	STATE &state = clientState[sender_fd];   // existing or default-created
+	if (state == DONE || state == ERROR) {
+		state = REQ_LINE;                   // fresh start for new request
+	}
+	
+
+	if (bytes_read <= 0 && recvBuffer[sender_fd].empty())
 	{
 		if (bytes_read == 0)
-		{
 			std::cout << "[" << sender_fd << "] Client socket closed connection.\n";
-		}
 		else
-		{
 			std::cout << "[Server] Recv error: "<< strerror(errno);
-		}
+		
 		close(sender_fd); // Close socket
 		del_from_poll_fds(i);
 	}
@@ -164,7 +169,20 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 		// Relays the received message to all connected sockets
 		// but not to the server socket or the sender socket
 		std::cout << "[" << sender_fd << "] Got message: start ----->\n" << buffer << "\n<----------end request\n";
-		request = FSM(buffer); // attention here for fsm
+		recvBuffer[sender_fd].append(buffer, bytes_read); // append to cleint_fd
+		std::cout << "send to fsm: " << recvBuffer[sender_fd] << std::endl;
+		
+		fsm(recvBuffer[sender_fd], &state);
+		std::cout << "state: " << state << std::endl;
+		if (state == DONE)
+		{
+			request = ParseFSM(recvBuffer[sender_fd]); // attention here for fsm
+			recvBuffer[sender_fd].clear();
+			state = REQ_LINE;
+
+		}
+
+
 		memset(&msg_to_send, '\0', sizeof msg_to_send);
 		//sprintf(msg_to_send, "[%d] says: %s", sender_fd, buffer);
 		//snprintf(msg_to_send, sizeof(msg_to_send), "[%d] says: %s", sender_fd,

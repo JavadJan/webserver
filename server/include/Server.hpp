@@ -17,11 +17,13 @@
 #include <stdio.h>
 #include <sstream>
 #include <string>
+#include <map>
+#include "../include/HttpRequest.hpp"
 
 #define PORT 4242
 
 class Config;
-class HttpRequest;
+//class HttpRequest;
 
 class Server{
 	private:
@@ -31,6 +33,9 @@ class Server{
 		char buffer[1024];
 		int server_fd;
 		int client_fd;
+
+		std::map<int, STATE> clientState; // keep state per client
+		std::map<int, std::string> recvBuffer;
 
 		/* for non-blocking */
 		std::vector<pollfd> poll_fds;
@@ -48,5 +53,6 @@ class Server{
 					const char *what() const throw();
 			};
 };
+
 
 #endif

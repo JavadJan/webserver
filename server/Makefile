@@ -12,7 +12,7 @@ HEADER = $(H)Server.hpp\
 OBJ_F = obj/
 SRC_F = src/
 
-SRC = main.cpp Config.cpp HttpRequest.cpp Server.cpp
+SRC = main.cpp Config.cpp HttpRequest.cpp Server.cpp FSM.cpp
 
 NAME = server
 
