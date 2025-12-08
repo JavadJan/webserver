@@ -21,6 +21,7 @@
 #define PORT 4242
 
 class Config;
+class HttpRequest;
 
 class Server{
 	private:
@@ -37,7 +38,7 @@ class Server{
 		void accept_new_connection();
 		void add_to_poll_fds(int new_fd);
 		void del_from_poll_fds(int i);
-		void read_data_from_socket(int i); // parsing heppen here
+		void read_data_from_socket(int i, HttpRequest &request); // parsing heppen here
 		int create_socket_bind();
 		public:
 			Server(Config config);
@@ -47,6 +48,5 @@ class Server{
 					const char *what() const throw();
 			};
 };
-
 
 #endif
