@@ -54,8 +54,8 @@ FLAGS = -Wall -Wextra -Werror -Iinclude -std=c++98
 NAME = server
 
 H = include/
-HEADER = $(H)Server.hpp \
-         $(H)ParsedData.hpp\
+HEADER = //$(H)Server.hpp \
+         //$(H)ParsedData.hpp\
          $(H)Config.hpp\
 
 OBJ_F = obj/

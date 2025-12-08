@@ -1,194 +1,178 @@
-//#include "../include/ParsedData.hpp"
 #include "../include/Server.hpp"
 #include "../include/Config.hpp"
+#include "../include/Request.hpp"
+#include <fcntl.h>     // For non-blocking sockets
+#include <arpa/inet.h> // For inet_pton
 
-Server::Server(Config conf):_port(conf.getPort()),client_len(sizeof(client_addr)), server_fd(-1), client_fd(-1)
+// ---------------------- Constructor ----------------------
+// Initialize the server using values from Config
+Server::Server(Config conf)
+    : _port(conf.getPort()), client_len(sizeof(client_addr)),
+      server_fd(-1), client_fd(-1), poll_count(1)
 {
-	// Prepare the address and port for the server socket
-	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family = AF_INET;                     // IPv4
-	server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // 127.0.0.1, localhost
-	server_addr.sin_port = htons(_port);
+    // Zero out the server and client address structures
+    memset(&server_addr, 0, sizeof(server_addr));
+    memset(&client_addr, 0, sizeof(client_addr));
 
-	/* for non-blocking */
-	poll_count = 1;
-	//poll_size = 5;
+    // Set address family (IPv4)
+    server_addr.sin_family = AF_INET;
+
+    // Convert string IP from Config to binary format
+    if (inet_pton(AF_INET, conf.getHost().c_str(), &server_addr.sin_addr) <= 0)
+    {
+        std::cerr << "[Server] Invalid host IP, using 127.0.0.1" << std::endl;
+        server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    }
+
+    // Set server port (network byte order)
+    server_addr.sin_port = htons(_port);
+
+    // Initialize pollfds vector with only the server socket for now
+    poll_fds.clear();
 }
 
+// ---------------------- Create Socket, Bind, Listen ----------------------
 int Server::create_socket_bind()
 {
-	int status;
+    // Create a TCP socket (IPv4)
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0)
+    {
+        std::cerr << "[Server] Socket error: " << strerror(errno) << std::endl;
+        return -1;
+    }
 
-	server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
-	if (server_fd == -1)
-	{
-		std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
-		return (-1);
-	}
-	// Bind socket to address and port
-	status = bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-	if (status != 0)
-	{
-		std::cout << "[Server] Bind Error: " << strerror(errno) << std::endl;
-		return (-1);
-	}
-	status = listen(server_fd, 10);
-	if (status != 0)
-	{
-		std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
-		return (3);
-	}
-	//run();
-	return 0;
-}
+    // Allow reuse of the address (avoid "Address already in use" errors)
+    int opt = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+    {
+        std::cerr << "[Server] Setsockopt error: " << strerror(errno) << std::endl;
+        close(server_fd);
+        return -1;
+    }
 
-void Server::run()
-{
-	create_socket_bind();
-	int status;
+    // Bind the socket to the configured IP and port
+    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        std::cerr << "[Server] Bind error: " << strerror(errno) << std::endl;
+        close(server_fd);
+        return -1;
+    }
 
-	poll_fds.clear();
+    // Start listening with a backlog of 10 connections
+    if (listen(server_fd, 10) < 0)
+    {
+        std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
+        close(server_fd);
+        return -1;
+    }
 
+    std::cout << "[Server] Listening on "
+              << inet_ntoa(server_addr.sin_addr) << ":" << _port << std::endl;
+
+    // Add server_fd to poll_fds for monitoring
     pollfd serverPoll;
     serverPoll.fd = server_fd;
-    serverPoll.events = POLLIN;
+    serverPoll.events = POLLIN; // Monitor for incoming connections
     serverPoll.revents = 0;
-
     poll_fds.push_back(serverPoll);
-	while (1)
-	{ // Main loop
-		// Poll sockets to see if they are ready (2 second timeout)
-		for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
-        	it->revents = 0;
-		status = poll(poll_fds.data(), poll_fds.size(), 2000);
-		if (status == -1)
-		{
-			std::cerr << "[Server] Poll error: \n" << strerror(errno);
-			throw ExceptionServer();
-		}
-		else if (status == 0)
-		{
-			// None of the sockets are ready
-			std::cout << "[Server] listening...\n";
-			continue ;
-		}
-		// Loop on our array of sockets
-		for (size_t i = 0; i < poll_fds.size(); i++)
-		{
-			if (!(poll_fds[i].revents & POLLIN))
-				continue;
-			// The socket is ready for reading!
-			if (poll_fds[i].fd == server_fd)
-			{
-				// Socket is our listening server socket
-				accept_new_connection();
-			}
-			else
-			{
-				// Socket is a client socket, read it
-				read_data_from_socket(i);
-			}
-		}
-	}
+
+    return 0;
 }
 
-const char* Server::ExceptionServer::what() const throw(){
-	return ("Faile to creation server!");
-}
-
- // our server's port
-void	Server::accept_new_connection()
+// ---------------------- Accept New Client ----------------------
+void Server::accept_new_connection()
 {
-	//char	msg_to_send[BUFSIZ];
-	std::string msg_to_send;
-	int		status;
+    // Accept incoming connection
+    socklen_t addr_len = sizeof(client_addr);
+    int new_client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
 
-	client_fd = accept(server_fd, NULL, NULL);
-	if (client_fd == -1)
-	{
-		std::cerr << "[Server] Accept error: \n" << strerror(errno);
-		return ;
-	}
+    if (new_client_fd < 0)
+    {
+        std::cerr << "[Server] Accept error: " << strerror(errno) << std::endl;
+        return;
+    }
 
-	add_to_poll_fds(client_fd); // no need to pass this fd
-	std::cout << "[Server] Accepted new connection on client socket" <<  client_fd << std::endl;
-	//memset(&msg_to_send, '\0', sizeof msg_to_send);
+    // Set the new client socket to non-blocking
+    int flags = fcntl(new_client_fd, F_GETFL, 0);
+    fcntl(new_client_fd, F_SETFL, flags | O_NONBLOCK);
 
-	//sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", client_fd);
-	std::ostringstream oss;
-	oss << "[" << client_fd << "] says: " << buffer;
-	msg_to_send = oss.str();
+    // Add the new client to poll_fds
+    add_to_poll_fds(new_client_fd);
 
-	status = send(client_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
-	//status = send(client_fd, msg_to_send, strlen(msg_to_send), 0);
-	if (status == -1)
-	{
-		std::cout << "[Server] Send error to client" << client_fd << strerror(errno) << std::endl;
-	}
+    std::cout << "[Server] Accepted new client: fd=" << new_client_fd << std::endl;
+
+    // Send a welcome message
+    std::string welcome = "Welcome! You are client [" + std::to_string(new_client_fd) + "]\n";
+    send(new_client_fd, welcome.c_str(), welcome.size(), 0);
 }
 
-void	Server::read_data_from_socket(int i)
+// ---------------------- Read Data from a Client ----------------------
+void Server::read_data_from_socket(int i)
 {
-	char	buffer[BUFSIZ];
-	char	msg_to_send[BUFSIZ];
-	int		bytes_read;
-	int		status = 0;
-	int		dest_fd;
-	int		sender_fd;
+    int sender_fd = poll_fds[i].fd;
+    char buffer[2048];
+    memset(buffer, 0, sizeof(buffer));
 
-	sender_fd = poll_fds[i].fd;
-	memset(&buffer, '\0', sizeof buffer);
-	bytes_read = recv(sender_fd, buffer, BUFSIZ, 0);
+    int bytes = recv(sender_fd, buffer, sizeof(buffer), 0);
 
-	if (bytes_read <= 0)
-	{
-		if (bytes_read == 0)
-		{
-			printf("[%d] Client socket closed connection.\n", sender_fd);
-		}
-		else
-		{
-			fprintf(stderr, "[Server] Recv error: %s\n", strerror(errno));
-		}
-		close(sender_fd); // Close socket
-		del_from_poll_fds(i);
-	}
-	else
-	{
-		// Relays the received message to all connected sockets
-		// but not to the server socket or the sender socket
-		std::cout << "[" << sender_fd << "] Got message: " << buffer;
-		memset(&msg_to_send, '\0', sizeof msg_to_send);
-		//sprintf(msg_to_send, "[%d] says: %s", sender_fd, buffer);
-		//snprintf(msg_to_send, sizeof(msg_to_send), "[%d] says: %s", sender_fd,
-		//	buffer);
-		std::ostringstream oss;
-		oss << "[" << sender_fd << "] says: " << buffer;
-		std::string msg_to_send = oss.str();
-		for (size_t j = 0; j < poll_fds.size(); j++)
-		{
-			dest_fd = (poll_fds)[j].fd;
-			if (dest_fd != server_fd && dest_fd != sender_fd)
-			{
-				//status = send(dest_fd, msg_to_send., strlen(msg_to_send), 0);
-				status = send(sender_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
-				if (status == -1)
-				{
-					fprintf(stderr, "[Server] Send error to client fd %d: %s\n",
-						dest_fd, strerror(errno));
-				}
-			}
-		}
-	}
+    if (bytes <= 0)
+    {
+        // Client disconnected or error occurred
+        if (bytes == 0)
+            std::cout << "[Server] Client fd=" << sender_fd << " disconnected." << std::endl;
+        else
+            std::cerr << "[Server] Recv error fd=" << sender_fd << ": " << strerror(errno) << std::endl;
+
+        close(sender_fd);
+        del_from_poll_fds(i);
+        return;
+    }
+
+    std::string raw(buffer,bytes);
+    std::cout << "[Server] Received from fd=" << sender_fd << ": " << raw << std::endl;
+
+    // -----------------------------------------
+    // Step 1: check if request is complete
+    // -----------------------------------------
+    size_t header_end = raw.find("\r\n\r\n");
+    if (header_end == std::string::npos)
+    {
+        std::cout << "[Server] Incomplete request from fd=" << sender_fd << std::endl;
+        return; // Wait for more data
+    }
+    
+    // Split head/body
+    std::string headerPart = raw.substr(0, header_end);
+    std::string bodyPart = raw.substr(header_end + 4);
+
+    Request req;
+
+    // ---------------------------
+    // Step 2: Parse request-line
+    // ---------------------------
+
+    size_t line_end = headerPart.find("\r\n");
+    if (line_end == std::string ::npos)
+    {
+        std::cerr << "[Server] Bad request-line\n";
+        return;
+    }
+
+    std::string requestLine = headerPart.substr(0, line_end);
+    std::istringstream rl (requestLine);
+
+    rl >> req.method >> req.target >> req.httpVersion ;
+
 }
 
+// ---------------------- Poll fd Management ----------------------
 void Server::add_to_poll_fds(int new_fd)
 {
     pollfd p;
     p.fd = new_fd;
     p.events = POLLIN;
     p.revents = 0;
-
     poll_fds.push_back(p);
 }
 
@@ -196,4 +180,50 @@ void Server::del_from_poll_fds(int i)
 {
     poll_fds[i] = poll_fds.back();
     poll_fds.pop_back();
+}
+
+// ---------------------- Main Server Loop ----------------------
+void Server::run()
+{
+    if (create_socket_bind() < 0)
+        throw ExceptionServer();
+
+    while (true)
+    {
+        // Reset revents before polling
+        for (size_t i = 0; i < poll_fds.size(); i++)
+            poll_fds[i].revents = 0;
+
+        int ret = poll(poll_fds.data(), poll_fds.size(), 2000); // 2 second timeout
+
+        if (ret < 0)
+        {
+            std::cerr << "[Server] Poll error: " << strerror(errno) << std::endl;
+            throw ExceptionServer();
+        }
+        else if (ret == 0)
+        {
+            // Timeout: no activity
+            std::cout << "[Server] Listening..." << std::endl;
+            continue;
+        }
+
+        // Check all fds for events
+        for (size_t i = 0; i < poll_fds.size(); i++)
+        {
+            if (!(poll_fds[i].revents & POLLIN))
+                continue;
+
+            if (poll_fds[i].fd == server_fd)
+                accept_new_connection();
+            else
+                read_data_from_socket(i);
+        }
+    }
+}
+
+// ---------------------- Exception ----------------------
+const char *Server::ExceptionServer::what() const throw()
+{
+    return "Server failed to start!";
 }

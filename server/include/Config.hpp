@@ -2,6 +2,9 @@
 # define Config_hpp
 
 #include <iostream>
+#include <fstream>      // std::ifstream
+#include <sstream>      // std::istringstream
+#include <cstdlib>      // std::atoi
 
 class Config{
 	private:

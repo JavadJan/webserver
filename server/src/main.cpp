@@ -3,6 +3,51 @@
 //#include "../include/ParsedData.hpp"
 #include <fcntl.h>
 
+
+/* int main (int argc, char **argv)
+{
+	std::string config_Path = "config.conf";
+	if (argc == 2)
+		config_Path = argv[1];
+	
+		Config Config(config_Path);
+		std::cout << "Host: " << Config.getHost() << std::endl;
+		std::cout << "Port: " << Config.getPort() << std::endl;
+	return 0;
+} */
+
+
+
+#include "Config.hpp"
+#include "Server.hpp"
+
+int main()
+{
+    Config conf("server.conf");
+    Server srv(conf);
+
+    try {
+        srv.run();
+    } catch (const Server::ExceptionServer &e) {
+        std::cerr << e.what() << std::endl;
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* 
+
 int	main(void)
 {
 	//struct sockaddr_in server_addr, client_addr;
@@ -68,4 +113,4 @@ int	main(void)
 	server.run();
 
 	return 0;
-}
+} */
