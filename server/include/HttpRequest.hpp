@@ -25,6 +25,7 @@ class HttpRequest
 		std::string protocol;
 		// header
 		std::map<std::string, std::string>	header; // header["host"] : "127.0.0.1:8080"
+		int conten_len;
 		std::string	body;
 	public:
 		HttpRequest();

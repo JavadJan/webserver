@@ -8,20 +8,27 @@
 
 int len_of_body(int pos, std::string recv)
 {
-	int len = 0;
-	const char *str = recv.substr(pos).c_str();
-	str = (char *)str;
-	while ( !(*str >='0' || *str <= '9'))
-	{
-		str++;
-	}
-	while (*str != '\n')
+	long long len = 0;
+
+	// skip contetn len ->|:
+	while (recv[pos] != ':')
+		pos++;
+	
+	while (recv[pos] == ' ' || recv[pos] == ':') pos++;
+
+	int start = pos;
+	// until end; count letter in num
+	while (recv[pos] != '\n')
 	{
 		len++;
-		str++;
+		pos++;
 	}
+	
+	len =  atoll(recv.substr(start, len).c_str());
+	
 	return len;
 }
+
 
 void Server::fsm(std::string recv, int sock_fd)
 {
@@ -44,6 +51,10 @@ void Server::fsm(std::string recv, int sock_fd)
 			break;
 		if (recv.find("Content-Length") != std::string::npos) // found body
 		{
+			int len = len_of_body(recv.find("Content-Length"), recv);
+			std::cout << "content len: " << len << std::endl;
+			conten_len[sock_fd] = len;
+
 			clientState[sock_fd] = BODY;
 			break ;	
 		}
@@ -53,18 +64,19 @@ void Server::fsm(std::string recv, int sock_fd)
 	}
 	case BODY:
 	{
-		int pos = recv.find("Content-Length"); // obtain the pos is so overload calculation
+		//int pos = recv.find("Content-Length"); // obtain the pos is so overload calculation
 			//!= std::string::npos; // read the content-len;
 		// contetn_len is already completed in header
-		int len = len_of_body(pos, recv);
-		std::string temp = recv.substr(pos, len);
+		//int len = len_of_body(pos, recv);
+		//std::string temp = recv.substr(pos, len);
 		
+		/* start body */
 		int start_body = recv.find("\r\n\r\n") + 4;
-		std::istringstream ss(temp);
-		ss >> contetn >> len_body ; 
-		if (atoll(len_body.c_str()) < static_cast<long long>(recv.substr(start_body).length())) 
+		//std::istringstream ss(temp);
+		//ss >> contetn >> len_body ; 
+		if (conten_len[sock_fd] >= recv.substr(start_body).length()) 
 			break ; // stay in body
-		std::cout << "len body: " << contetn << " len:" << len_body << std::endl << std::endl;
+		//std::cout << "len body: " << contetn << " len:" << len_body << std::endl << std::endl;
 		clientState[sock_fd] = DONE;
 		break;
 	}

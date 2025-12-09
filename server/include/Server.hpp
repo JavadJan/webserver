@@ -41,15 +41,16 @@ class Server{
 		int _port;
 		struct sockaddr_in server_addr, client_addr;
 		socklen_t client_len;
-		char buffer[1024];
+		char buffer[1024]; // this buffer should bo also per socket?
 		int server_fd;
 		int client_fd;
 
-		/* track the state, smart state */
+		/* track the state, smart state, persisit buffer per socket/client? */
 		std::map<int, STATE> clientState; // keep state per client
 		std::map<int, std::string> recvBuffer;
-		std::map<int, int> conten_len;
-
+		std::map<int, size_t> conten_len; // this field has defiend two times, another in http_req
+		std::map<int, HttpRequest> http_req; // for every socket should be created an objet of request
+		int start_body;
 
 		/* for non-blocking */
 		std::vector<pollfd> poll_fds;

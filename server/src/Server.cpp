@@ -143,7 +143,7 @@ void	Server::accept_new_connection()
 
 void	Server::read_data_from_socket(int i, HttpRequest &request)
 {
-	char	buffer[BUFSIZ];
+	char	chunk[BUFSIZ];
 	char	msg_to_send[BUFSIZ];
 	int		bytes_read;
 	int		status = 0;
@@ -154,8 +154,8 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 
 
 	sender_fd = poll_fds[i].fd;
-	memset(&buffer, '\0', sizeof(buffer));
-	bytes_read = recv(sender_fd, buffer, BUFSIZ, 0);
+	memset(&chunk, '\0', sizeof(chunk));
+	bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
 
 	if (clientState[sender_fd] == DONE || clientState[sender_fd] == ERROR) {
 		clientState[sender_fd] = REQ_LINE;                   // fresh start for new request
@@ -176,8 +176,8 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 	{
 		// Relays the received message to all connected sockets
 		// but not to the server socket or the sender socket
-		std::cout << "[" << sender_fd << "] Got message: start ----->\n" << buffer << "\n<----------end request\n";
-		recvBuffer[sender_fd].append(buffer, bytes_read); // append to cleint_fd
+		std::cout << "[" << sender_fd << "] Got message: start ----->\n" << chunk << "\n<----------end request\n";
+		recvBuffer[sender_fd].append(chunk, bytes_read); // append to cleint_fd
 		//std::cout << "send to fsm: " << recvBuffer[sender_fd] << std::endl;
 		
 		fsm(recvBuffer[sender_fd], sender_fd);
@@ -198,7 +198,7 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 		//snprintf(msg_to_send, sizeof(msg_to_send), "[%d] says: %s", sender_fd,
 		//	buffer);
 		std::ostringstream oss;
-		oss << "[" << sender_fd << "] says: " << buffer;
+		oss << "[" << sender_fd << "] says: " << chunk;
 		std::string msg_to_send = oss.str();
 		for (size_t j = 0; j < poll_fds.size(); j++)
 		{
