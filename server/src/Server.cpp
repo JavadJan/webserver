@@ -3,7 +3,12 @@
 #include "../include/Config.hpp"
 #include "../include/HttpRequest.hpp"
 
-Server::Server(Config conf):_port(conf.getPort()),client_len(sizeof(client_addr)), server_fd(-1), client_fd(-1)
+Server::Server(Config conf)
+:
+_port(conf.getPort()),
+client_len(sizeof(client_addr)),
+server_fd(-1),
+client_fd(-1)
 {
 	// Prepare the address and port for the server socket
 	memset(&server_addr, 0, sizeof(server_addr));
@@ -91,11 +96,10 @@ void Server::run()
 			}
 			else
 			{
-				std::cout <<"client fd" << client_fd << "------------------" << i << std::endl;
 				// Socket is a client socket, read it
-				HttpRequest request;
+				//HttpRequest request;
 				// in reading time create HttpRequest obj
-				read_data_from_socket(i, request);
+				read_data_from_socket(i);
 				
 			}
 		}
@@ -136,12 +140,14 @@ void	Server::accept_new_connection()
 		std::cout << "[Server] Send error to client" << client_fd << strerror(errno) << std::endl;
 	}
 
-	clientState[client_fd] = REQ_LINE;
-	recvBuffer[client_fd].clear();
-
+	//this->http_req[client_fd] = HttpRequest(); // create am object, TCP streaming is started 
+	//http_req.emplace(client_fd, HttpRequest());
+	http_req.insert(std::make_pair(client_fd, HttpRequest()));
+	
+	this->http_req[client_fd].clearBuffer();
 }
 
-void	Server::read_data_from_socket(int i, HttpRequest &request)
+void	Server::read_data_from_socket(int i)
 {
 	char	chunk[BUFSIZ];
 	char	msg_to_send[BUFSIZ];
@@ -150,46 +156,32 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 	int		dest_fd;
 	int		sender_fd;
 
-	
-
-
 	sender_fd = poll_fds[i].fd;
+
 	memset(&chunk, '\0', sizeof(chunk));
 	bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
-
-	if (clientState[sender_fd] == DONE || clientState[sender_fd] == ERROR) {
-		clientState[sender_fd] = REQ_LINE;                   // fresh start for new request
-	}
-	
-
-	if (bytes_read <= 0 && recvBuffer[sender_fd].empty())
-	{
-		if (bytes_read == 0)
-			std::cout << "[" << sender_fd << "] Client socket closed connection.\n";
-		else
-			std::cout << "[Server] Recv error: "<< strerror(errno);
 		
-		close(sender_fd); // Close socket
-		del_from_poll_fds(i);
-	}
-	else
+	if (bytes_read > 0)
 	{
 		// Relays the received message to all connected sockets
 		// but not to the server socket or the sender socket
-		std::cout << "[" << sender_fd << "] Got message: start ----->\n" << chunk << "\n<----------end request\n";
-		recvBuffer[sender_fd].append(chunk, bytes_read); // append to cleint_fd
-		//std::cout << "send to fsm: " << recvBuffer[sender_fd] << std::endl;
+		std::cout << "\n[" << sender_fd << "] Got message: start ----->\n" << chunk << "\n<----------end request\n\n";
+		//recvBuffer[sender_fd].append(chunk, bytes_read); // append to cleint_fd
+		http_req[sender_fd].appendBuffer(chunk, bytes_read);
+
+		//std::cout << "send to fsm: " << http_req[sender_fd].getBuffer() << "chunk: " << chunk << std::endl;
 		
-		fsm(recvBuffer[sender_fd], sender_fd);
-
+		//std::cout <<"client fd " << client_fd << "------------------" << sender_fd << std::endl;
+	
+		fsm(sender_fd); // 
+	
 		//std::cout << "state: " << clientState[sender_fd] << std::endl;
-
-		if (clientState[sender_fd] == DONE)
+		if (http_req[sender_fd].getState() == HttpRequest::DONE)
 		{
-			request = ParseFSM(recvBuffer[sender_fd]); // attention here for fsm
-			recvBuffer[sender_fd].clear();
-			clientState[sender_fd] = REQ_LINE;
-			std::cout << "\n\nHTTP REQ: " << request << std::endl;
+			ParseFSM(sender_fd); // use from http_req.buffer -> fille req.method
+			http_req[sender_fd].clearBuffer();
+			http_req[sender_fd].setState(HttpRequest::REQ_LINE);
+			std::cout << "\n\nHTTP REQ: " << http_req[sender_fd] << std::endl;
 		}
 
 
@@ -206,7 +198,8 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 			if (dest_fd != server_fd && dest_fd != sender_fd)
 			{
 				//status = send(dest_fd, msg_to_send., strlen(msg_to_send), 0);
-				status = send(sender_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
+				//status = send(sender_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
+				status = send(dest_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
 				if (status == -1)
 				{
 					std::cout << "[Server] Send error to client fd" << strerror(errno) << std::endl;
@@ -214,12 +207,24 @@ void	Server::read_data_from_socket(int i, HttpRequest &request)
 			}
 		}
 	}
+	else
+	{
+		if (bytes_read == 0 && http_req[sender_fd].getBuffer().empty())
+		{
+			close(sender_fd); // Close socket
+			std::cout << "[" << sender_fd << "] Client socket closed connection.\n";
+		}
+		else
+			std::cout << "[Server] Recv error: "<< strerror(errno);
+		
+		del_from_poll_fds(i); // 
+	}
 }
 
-void Server::add_to_poll_fds(int new_fd)
+void Server::add_to_poll_fds(int cleint_fd)
 {
     pollfd p;
-    p.fd = new_fd;
+    p.fd = cleint_fd;
     p.events = POLLIN;
     p.revents = 0;
 

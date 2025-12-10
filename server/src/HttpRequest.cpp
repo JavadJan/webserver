@@ -1,7 +1,8 @@
 #include "../include/HttpRequest.hpp"
 
-HttpRequest::HttpRequest()
+HttpRequest::HttpRequest(): state(REQ_LINE), conten_len(0)
 {
+	std::cout << "default constructor called\n";
 }
 HttpRequest::~HttpRequest()
 {
@@ -17,8 +18,14 @@ HttpRequest& HttpRequest::operator=(const HttpRequest &other)
 		this->method = other.method;
 		this->path = other.path;
 		this->protocol = other.protocol;
+		
+		this->header = other.header; // 
+		
 		this->body = other.body;
-		this->header = other.header;
+		
+		this->conten_len = other.conten_len;
+
+		this->recvBuffer = other.recvBuffer;
 	}
 	return (*this);
 }
@@ -84,9 +91,33 @@ const std::string& HttpRequest::getProtocol() const
 const std::string& HttpRequest::getBody() const{
 	return body;
 }
+
+const std::string& HttpRequest::getBuffer() const{
+	return recvBuffer;
+}
+
+size_t HttpRequest::getContetn() const{
+	return conten_len;
+}
+
+HttpRequest::STATE HttpRequest::getState() const
+{
+	return state;
+}
+
+void HttpRequest::clearBuffer(){recvBuffer.clear();}
 //--------------------------#
 //		setter				#
 //--------------------------#
+void HttpRequest::setState(enum STATE state){ this->state = state;}
+void HttpRequest::appendBuffer(std::string chunk, int bytes_read)
+{
+    if (bytes_read > static_cast<int>(chunk.size()))
+        bytes_read = chunk.size();
+    recvBuffer.append(chunk, 0, bytes_read);
+    //std::cout << "in append: " << recvBuffer  << "-->|" << std::endl;
+}
+
 void HttpRequest::setMethod(const std::string& x) {
     method = x;
 }
@@ -109,6 +140,10 @@ void HttpRequest::setHeader(const std::string& key, const std::string& value) {
 
 void HttpRequest::setHeader(const std::map<std::string, std::string>& hdr) {
     header = hdr; // replace entire header map
+}
+
+void HttpRequest::setContent(size_t len) {
+    this->conten_len = len; // replace entire header map
 }
 
 

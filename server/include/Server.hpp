@@ -28,14 +28,14 @@ class Config;
 class Server{
 	private:
 		/* state for state machine */
-		enum	STATE
-		{
-			REQ_LINE,
-			HEADER,
-			BODY,
-			DONE,
-			ERROR
-		};
+		//enum	STATE
+		//{
+		//	REQ_LINE,
+		//	HEADER,
+		//	BODY,
+		//	DONE,
+		//	ERROR
+		//};
 
 		/* data for make connection, ip, port, sockets */
 		int _port;
@@ -46,9 +46,9 @@ class Server{
 		int client_fd;
 
 		/* track the state, smart state, persisit buffer per socket/client? */
-		std::map<int, STATE> clientState; // keep state per client
-		std::map<int, std::string> recvBuffer;
-		std::map<int, size_t> conten_len; // this field has defiend two times, another in http_req
+		//std::map<int, STATE> clientState; // keep state per client
+		//std::map<int, std::string> recvBuffer;
+		//std::map<int, size_t> conten_len; // this field has defiend two times, another in http_req
 		std::map<int, HttpRequest> http_req; // for every socket should be created an objet of request
 		int start_body;
 
@@ -60,12 +60,12 @@ class Server{
 		void accept_new_connection();
 		void add_to_poll_fds(int new_fd);
 		void del_from_poll_fds(int i);
-		void read_data_from_socket(int i, HttpRequest &request); // parsing heppen here
+		void read_data_from_socket(int i); // parsing heppen here
 		int create_socket_bind();
 
 		/* state machine function */
-		HttpRequest ParseFSM(std::string req); // parser the req
-		void fsm(std::string recieve, int sock_fd); // control strea string from TCP
+		void ParseFSM(int sock_fd); // parser the REQ.buffer->object
+		void fsm(int sock_fd); // control strea string from TCP
 
 		public:
 			Server(Config config);
