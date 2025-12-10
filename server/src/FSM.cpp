@@ -134,7 +134,7 @@ void Server::ParseFSM(int sock_fd)
 		if (line.empty())
 			continue;
 
-		// Remove trailing \r (C++98 doesn't have pop_back)
+		// Remove trailing \r 
 		if (!line.empty() && line[line.size() - 1] == '\r')
 			line.erase(line.size() - 1);
 
