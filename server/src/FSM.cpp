@@ -6,6 +6,60 @@
 	then pass to the fsm
 */
 
+void Server::consume(size_t start, size_t end, int sock_fd)
+{
+    http_req[sock_fd].eraseBuffer(start, end);
+}
+
+void Server::parseRequestLine(std::string buf, int sock_fd)
+{
+
+    std::istringstream rl(buf);
+    std::string method, path, protocol;
+    rl >> method >> path >> protocol;
+
+    http_req[sock_fd].setMethod(method);
+    http_req[sock_fd].setPath(path);
+    http_req[sock_fd].setProtocol(protocol);
+
+	size_t pos = buf.find("\r\n");
+	if (pos == std::string::npos)
+		pos = buf.find("\n");
+
+	size_t newline_len = (buf[pos] == '\r') ? 2 : 1;
+    consume(0, pos+ newline_len, sock_fd); // remove every state from prev
+}
+
+void Server::parseHeader(std::string buf, int sock_fd)
+{
+	std::istringstream header_stream(buf);
+	std::string line;
+
+	while (std::getline(header_stream, line)) 
+	{
+		if (line.empty())
+			continue;
+
+		// Remove trailing \r 
+		if (!line.empty() && line[line.size() - 1] == '\r')
+			line.erase(line.size() - 1);
+
+		size_t colon = line.find(':');
+		if (colon == std::string::npos)
+			continue;
+
+		std::string key = line.substr(0, colon);
+		std::string value = line.substr(colon + 1);
+
+		// trim leading space
+		while (!value.empty() && value[0] == ' ')
+			value.erase(0, 1);
+
+		http_req[sock_fd].setHeader(key, value);
+	}
+}
+
+
 int len_of_body(int pos, std::string recv)
 {
 	long long len = 0;
@@ -37,7 +91,7 @@ void Server::fsm(int sock_fd)
 	std::cout << "arived to fsm [STATE]: " << http_req[sock_fd].getState() << std::endl;
 	while (true)
 	{
-		/* code */
+		
 		if (http_req[sock_fd].getState() == HttpRequest::DONE 
 			|| http_req[sock_fd].getState() == HttpRequest::ERROR)
 			return;
@@ -45,47 +99,72 @@ void Server::fsm(int sock_fd)
 		{
 		case HttpRequest::REQ_LINE:
 		{
-			if (http_req[sock_fd].getBuffer().find("\r\n") == std::string::npos) // not complted wait more
-				break ;
-			http_req[sock_fd].setState(HttpRequest::HEADER);
-			std::cout << "[REQ_LINE STATE] has completed\n\n";
-			continue;
+			const std::string& buf = http_req[sock_fd].getBuffer();
+
+			size_t pos = buf.find("\r\n"); // nc end:\n curl end:\r\n
+			if (pos == std::string::npos)
+				pos = buf.find("\n");
+
+			if (pos != std::string::npos) {
+				std::string req_line = buf.substr(0, pos);
+				parseRequestLine(req_line, sock_fd);
+
+				size_t newline_len = (buf[pos] == '\r') ? 2 : 1;
+				consume(0, pos + newline_len, sock_fd);
+
+				http_req[sock_fd].setState(HttpRequest::HEADER);
+				std::cout << "[REQ_LINE STATE] has completed, parse the req_line then go header\n\n";
+				continue;
+			}
 			break;
 		}
 		case HttpRequest::HEADER:
-		{
-			if (http_req[sock_fd].getBuffer().find("\r\n\r\n") == std::string::npos) // not complted wait more
-				break;
+		{	
+			const std::string& buf = http_req[sock_fd].getBuffer();
+
+			size_t header_end = buf.find("\r\n\r\n");
+			size_t delim = 4;
+
+			if (header_end == std::string::npos) {
+				header_end = buf.find("\n\n");
+				delim = 2;
+			}
+
+			if (header_end != std::string::npos) {
+				std::string header_block = buf.substr(0, header_end);
+				parseHeader(header_block, sock_fd);
+
+				if (http_req[sock_fd].getBuffer().find("Content-Length") != std::string::npos) // found body
+				{
+					int len = len_of_body(http_req[sock_fd].getBuffer().find("Content-Length"), http_req[sock_fd].getBuffer());
+					std::cout << "content len: " << len << std::endl;
+					
+					http_req[sock_fd].setContent(static_cast<size_t>(len));
+					
+					std::cout << "[HEADER STATE] has completed\n\n";
+					//clientState[sock_fd] = BODY;	
+					http_req[sock_fd].setState(HttpRequest::BODY);
+				}
+				else
+					http_req[sock_fd].setState(HttpRequest::DONE);
+				consume(0, header_end + delim, sock_fd);
+				continue;
+			}
 			// if arrive here it meand the header has completed	
-			if (http_req[sock_fd].getBuffer().find("Content-Length") != std::string::npos) // found body
-			{
-				int len = len_of_body(http_req[sock_fd].getBuffer().find("Content-Length"), http_req[sock_fd].getBuffer());
-				std::cout << "content len: " << len << std::endl;
-				http_req[sock_fd].setContent(static_cast<size_t>(len));
-				std::cout << "[HEADER STATE] has completed\n\n";
-				http_req[sock_fd].setState(HttpRequest::BODY);
-				//clientState[sock_fd] = BODY;	
-				break ;	
-			}
-			else
-			{
-				http_req[sock_fd].setState(HttpRequest::DONE);
-				//clientState[sock_fd] = DONE;
-			}
 			break;
 		}
 		case HttpRequest::BODY:
 		{
-			if (http_req[sock_fd].getBuffer().length() - start_body < http_req[sock_fd].getContetn())
-			{
-				// body incomplete
-				break;
-			}
-			else
-			{
-				http_req[sock_fd].setState(HttpRequest::DONE);
-				std::cout << "[BODY STATE] has completed\n\n";
-			}
+			const std::string &buf = http_req[sock_fd].getBuffer();
+			if (buf.size() < http_req[sock_fd].getContetn())
+				break; // not complete
+
+			std::string body = buf.substr(0, http_req[sock_fd].getContetn());
+			http_req[sock_fd].setBody(body);
+
+			consume(0,http_req[sock_fd].getContetn(), sock_fd);
+
+			http_req[sock_fd].setState(HttpRequest::DONE);
 	
 		}
 		case HttpRequest::DONE:

@@ -159,6 +159,7 @@ void	Server::read_data_from_socket(int i)
 	sender_fd = poll_fds[i].fd;
 
 	memset(&chunk, '\0', sizeof(chunk));
+	//recv() just reads whatever bytes are currently available in the kernel buffer for that socket.
 	bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
 		
 	if (bytes_read > 0)
@@ -178,10 +179,10 @@ void	Server::read_data_from_socket(int i)
 		//std::cout << "state: " << clientState[sender_fd] << std::endl;
 		if (http_req[sender_fd].getState() == HttpRequest::DONE)
 		{
-			ParseFSM(sender_fd); // use from http_req.buffer -> fille req.method
+			//ParseFSM(sender_fd); // use from http_req.buffer -> fille req.method
 			http_req[sender_fd].clearBuffer();
 			http_req[sender_fd].setState(HttpRequest::REQ_LINE);
-			std::cout << "\n\nHTTP REQ: " << http_req[sender_fd] << std::endl;
+			std::cout << "\n\nHTTP REQ: |" << http_req[sender_fd] << "|\n"<< std::endl;
 		}
 
 

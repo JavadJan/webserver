@@ -67,6 +67,10 @@ class Server{
 		void ParseFSM(int sock_fd); // parser the REQ.buffer->object
 		void fsm(int sock_fd); // control strea string from TCP
 
+		/* in each state I remove after complition STATE */
+		void consume(size_t start, size_t end, int sock_fd);
+		void parseRequestLine(std::string buf, int sock_fd);
+		void parseHeader(std::string buf, int sock_fd);
 		public:
 			Server(Config config);
 			void run();

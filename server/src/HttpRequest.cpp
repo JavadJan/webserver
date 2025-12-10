@@ -65,6 +65,10 @@ bool isHTTP(const std::string& http) {
     return false;
 }
 
+void HttpRequest::eraseBuffer(size_t start, size_t end)
+{
+	this->recvBuffer.erase(start, end);
+}
 
 //--------------------------#
 //		getter				#
