@@ -1,30 +1,39 @@
-#ifndef Config_hpp
-# define Config_hpp
+#ifndef CONFIG_HPP
+# define CONFIG_HPP
 
-#include <iostream>
-#include <vector>
+# include <algorithm>
+# include <fstream>
+# include <iostream>
+# include <map>
+# include <stack>
+# include <stdexcept>
+# include <sstream>
+# include <vector>
 
-struct NodeConf {
-    std::string name;
-	std::vector<std::string> args;
-    std::vector<NodeConf> children;
+// server{
+//	listen 8080;
+//	route /docs/www;
+
+//	#route
+//	location /
+//	{
+
+//	}
+//}
+struct	Location
+{
+	std::string path;
+	std::map<std::string, std::string> directive;
 };
 
-class Config{
-	private:
-		int port;
-		std::string host;
-		struct NodeConf Node;
-	public:
-		Config();
-		Config(const std::string& config); // create an object from config.conf
-		Config(const Config& other);
-		//Config& operator=(const Config& other);
-		~Config();
-
-		/* gettter */
-		int getPort() const;
-		const std::string& getHost() const;
+struct	Config
+{
+	int	port;
+	std::string host;
+	std::map<std::string, std::string> directives;
+	std::vector<struct	Location> locations;
 };
+
+std::vector<struct Config> parseConfig(const char* conf);
 
 #endif

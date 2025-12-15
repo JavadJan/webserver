@@ -2,7 +2,7 @@
 
 HttpRequest::HttpRequest(): state(REQ_LINE), conten_len(0)
 {
-	std::cout << "default constructor called\n";
+	std::cout << "default constructor called" << state << std::endl;
 }
 HttpRequest::~HttpRequest()
 {
@@ -22,7 +22,8 @@ HttpRequest& HttpRequest::operator=(const HttpRequest &other)
 		this->header = other.header; // 
 		
 		this->body = other.body;
-		
+		this->state = other.state;
+
 		this->conten_len = other.conten_len;
 
 		this->recvBuffer = other.recvBuffer;

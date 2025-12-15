@@ -27,16 +27,7 @@ class Config;
 
 class Server{
 	private:
-		/* state for state machine */
-		//enum	STATE
-		//{
-		//	REQ_LINE,
-		//	HEADER,
-		//	BODY,
-		//	DONE,
-		//	ERROR
-		//};
-
+		
 		/* data for make connection, ip, port, sockets */
 		int _port;
 		struct sockaddr_in server_addr, client_addr;
@@ -46,9 +37,6 @@ class Server{
 		int client_fd;
 
 		/* track the state, smart state, persisit buffer per socket/client? */
-		//std::map<int, STATE> clientState; // keep state per client
-		//std::map<int, std::string> recvBuffer;
-		//std::map<int, size_t> conten_len; // this field has defiend two times, another in http_req
 		std::map<int, HttpRequest> http_req; // for every socket should be created an objet of request
 		int start_body;
 
@@ -72,7 +60,7 @@ class Server{
 		void parseRequestLine(std::string buf, int sock_fd);
 		void parseHeader(std::string buf, int sock_fd);
 		public:
-			Server(Config config);
+			Server(std::vector<struct Config> serversConfig);
 			void run();
 			class ExceptionServer: public std::exception{
 				public:

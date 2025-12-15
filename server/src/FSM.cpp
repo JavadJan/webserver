@@ -26,8 +26,8 @@ void Server::parseRequestLine(std::string buf, int sock_fd)
 	if (pos == std::string::npos)
 		pos = buf.find("\n");
 
-	size_t newline_len = (buf[pos] == '\r') ? 2 : 1;
-    consume(0, pos+ newline_len, sock_fd); // remove every state from prev
+	//size_t newline_len = (buf[pos] == '\r') ? 2 : 1;
+    //consume(0, pos+ newline_len, sock_fd); // remove every state from prev
 }
 
 void Server::parseHeader(std::string buf, int sock_fd)
@@ -40,7 +40,7 @@ void Server::parseHeader(std::string buf, int sock_fd)
 		if (line.empty())
 			continue;
 
-		// Remove trailing \r 
+		// Remove trailing \r
 		if (!line.empty() && line[line.size() - 1] == '\r')
 			line.erase(line.size() - 1);
 
@@ -115,8 +115,10 @@ void Server::fsm(int sock_fd)
 				http_req[sock_fd].setState(HttpRequest::HEADER);
 				std::cout << "[REQ_LINE STATE] has completed, parse the req_line then go header\n\n";
 				continue;
+				//break;
 			}
-			break;
+			else
+				return;
 		}
 		case HttpRequest::HEADER:
 		{	
@@ -149,6 +151,7 @@ void Server::fsm(int sock_fd)
 					http_req[sock_fd].setState(HttpRequest::DONE);
 				consume(0, header_end + delim, sock_fd);
 				continue;
+				//break;
 			}
 			// if arrive here it meand the header has completed	
 			break;
@@ -157,7 +160,7 @@ void Server::fsm(int sock_fd)
 		{
 			const std::string &buf = http_req[sock_fd].getBuffer();
 			if (buf.size() < http_req[sock_fd].getContetn())
-				break; // not complete
+				return; // not complete
 
 			std::string body = buf.substr(0, http_req[sock_fd].getContetn());
 			http_req[sock_fd].setBody(body);
@@ -165,7 +168,7 @@ void Server::fsm(int sock_fd)
 			consume(0,http_req[sock_fd].getContetn(), sock_fd);
 
 			http_req[sock_fd].setState(HttpRequest::DONE);
-	
+			break;
 		}
 		case HttpRequest::DONE:
 		{
@@ -183,73 +186,73 @@ void Server::fsm(int sock_fd)
 	
 }
 
-void Server::ParseFSM(int sock_fd)
-{
-    const std::string& buf = http_req[sock_fd].getBuffer();
+//void Server::ParseFSM(int sock_fd)
+//{
+//    const std::string& buf = http_req[sock_fd].getBuffer();
 
-    // 1) Parse request line
-    size_t pos_reqline_end = buf.find("\r\n");
-    std::string reqline = buf.substr(0, pos_reqline_end);
+//    // 1) Parse request line
+//    size_t pos_reqline_end = buf.find("\r\n");
+//    std::string reqline = buf.substr(0, pos_reqline_end);
 
-    std::istringstream rl(reqline);
-    std::string method, path, protocol;
-    rl >> method >> path >> protocol;
+//    std::istringstream rl(reqline);
+//    std::string method, path, protocol;
+//    rl >> method >> path >> protocol;
 
-    http_req[sock_fd].setMethod(method);
-    http_req[sock_fd].setPath(path);
-    http_req[sock_fd].setProtocol(protocol);
+//    http_req[sock_fd].setMethod(method);
+//    http_req[sock_fd].setPath(path);
+//    http_req[sock_fd].setProtocol(protocol);
 
-    // 2) Parse headers
-    size_t header_start = pos_reqline_end + 2;                // skip "\r\n"
-    size_t headers_end = buf.find("\r\n\r\n");                // end of headers block
-    size_t headers_len = headers_end - header_start;
+//    // 2) Parse headers
+//    size_t header_start = pos_reqline_end + 2;                // skip "\r\n"
+//    size_t headers_end = buf.find("\r\n\r\n");                // end of headers block
+//    size_t headers_len = headers_end - header_start;
 
-    std::string header_content = buf.substr(header_start, headers_len);
-	std::istringstream header_stream(header_content);
-	std::string line;
+//    std::string header_content = buf.substr(header_start, headers_len);
+//	std::istringstream header_stream(header_content);
+//	std::string line;
 
-	while (std::getline(header_stream, line)) 
-	{
-		if (line.empty())
-			continue;
+//	while (std::getline(header_stream, line)) 
+//	{
+//		if (line.empty())
+//			continue;
 
-		// Remove trailing \r 
-		if (!line.empty() && line[line.size() - 1] == '\r')
-			line.erase(line.size() - 1);
+//		// Remove trailing \r 
+//		if (!line.empty() && line[line.size() - 1] == '\r')
+//			line.erase(line.size() - 1);
 
-		size_t colon = line.find(':');
-		if (colon == std::string::npos)
-			continue;
+//		size_t colon = line.find(':');
+//		if (colon == std::string::npos)
+//			continue;
 
-		std::string key = line.substr(0, colon);
-		std::string value = line.substr(colon + 1);
+//		std::string key = line.substr(0, colon);
+//		std::string value = line.substr(colon + 1);
 
-		// trim leading space
-		while (!value.empty() && value[0] == ' ')
-			value.erase(0, 1);
+//		// trim leading space
+//		while (!value.empty() && value[0] == ' ')
+//			value.erase(0, 1);
 
-		http_req[sock_fd].setHeader(key, value);
-	}
+//		http_req[sock_fd].setHeader(key, value);
+//	}
 
 
-    // 3) Parse body
-    size_t body_start = headers_end + 4;          // skip "\r\n\r\n"
-    std::string body = buf.substr(body_start);
+//    // 3) Parse body
+//    size_t body_start = headers_end + 4;          // skip "\r\n\r\n"
+//    std::string body = buf.substr(body_start);
 
-    http_req[sock_fd].setBody(body);
+//    http_req[sock_fd].setBody(body);
 
-    //std::cout << "Parsed method:   " << method << std::endl;
-    //std::cout << "Parsed path:     " << path << std::endl;
-    //std::cout << "Parsed protocol: " << protocol << std::endl;
+//    //std::cout << "Parsed method:   " << method << std::endl;
+//    //std::cout << "Parsed path:     " << path << std::endl;
+//    //std::cout << "Parsed protocol: " << protocol << std::endl;
 
-    //const std::map<std::string, std::string>& headers = http_req[sock_fd].getHeader();
+//    //const std::map<std::string, std::string>& headers = http_req[sock_fd].getHeader();
 
-	//for (std::map<std::string, std::string>::const_iterator it = headers.begin();
-	//	it != headers.end();
-	//	++it)
-	//{
-	//	std::cout << "Header[" << it->first << "] = " << it->second << std::endl;
-	//}
+//	//for (std::map<std::string, std::string>::const_iterator it = headers.begin();
+//	//	it != headers.end();
+//	//	++it)
+//	//{
+//	//	std::cout << "Header[" << it->first << "] = " << it->second << std::endl;
+//	//}
 
-    //std::cout << "Body: " << body << std::endl;
-}
+//    //std::cout << "Body: " << body << std::endl;
+//}

@@ -3,9 +3,9 @@
 #include "../include/Config.hpp"
 #include "../include/HttpRequest.hpp"
 
-Server::Server(Config conf)
+Server::Server(std::vector<struct Config> serversConfig)
 :
-_port(conf.getPort()),
+_port(serversConfig[0].port),
 client_len(sizeof(client_addr)),
 server_fd(-1),
 client_fd(-1)
@@ -19,6 +19,7 @@ client_fd(-1)
 	/* for non-blocking */
 	poll_count = 1;
 	//poll_size = 5;
+	(void)serversConfig;
 }
 
 int Server::create_socket_bind()
@@ -172,7 +173,7 @@ void	Server::read_data_from_socket(int i)
 
 		//std::cout << "send to fsm: " << http_req[sender_fd].getBuffer() << "chunk: " << chunk << std::endl;
 		
-		//std::cout <<"client fd " << client_fd << "------------------" << sender_fd << std::endl;
+		std::cout <<"client fd " << client_fd << "------------------" << sender_fd << std::endl;
 	
 		fsm(sender_fd); // 
 	
@@ -210,13 +211,14 @@ void	Server::read_data_from_socket(int i)
 	}
 	else
 	{
-		if (bytes_read == 0 && http_req[sender_fd].getBuffer().empty())
+		// && http_req[sender_fd].getBuffer().empty()
+		if (bytes_read == 0)
 		{
 			close(sender_fd); // Close socket
 			std::cout << "[" << sender_fd << "] Client socket closed connection.\n";
 		}
 		else
-			std::cout << "[Server] Recv error: "<< strerror(errno);
+			std::cout << "[Server] Recv: "<< strerror(errno);
 		
 		del_from_poll_fds(i); // 
 	}
