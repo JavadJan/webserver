@@ -24,6 +24,8 @@ struct	Location
 {
 	std::string path;
 	std::map<std::string, std::string> directive;
+	bool empty;
+	Location();
 };
 
 struct	Config
@@ -32,6 +34,8 @@ struct	Config
 	std::string host;
 	std::map<std::string, std::string> directives;
 	std::vector<struct	Location> locations;
+	bool empty;
+	Config();
 };
 
 std::vector<struct Config> parseConfig(const char* conf);

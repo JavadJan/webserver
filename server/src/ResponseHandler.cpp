@@ -1,4 +1,5 @@
 #include "../include/ResponseHandler.hpp"
+#include "../include/Config.hpp" // to use location and config
 
 //------------------------------#
 //			constructors		#
@@ -21,9 +22,27 @@ ResponseHandler &ResponseHandler::operator=(const ResponseHandler &other)
 	}
 	return (*this);
 }
+static struct Location matchLocation(struct Config server,std::string path)
+{
+	struct Location location;
+	size_t i = 0;
+	size_t longest = 0;
+	
+	while (i < server.locations.size())
+	{
+		std::string p = server.locations[i].path;
+		if (path.find(p) == 0 && p.size() > longest) // this longest say the largsest match
+		{
+			location = server.locations[i];
+			longest = p.size();
+		}
+		
+		i++;
+	}
+	return location;
+}
 
-
-struct Config matchServer(const HttpRequest &req, std::vector<struct Config> servers)
+static struct Config matchServer(const HttpRequest &req, std::vector<struct Config> servers)
 {
 	struct Config server;
 	size_t i = 0;
@@ -50,10 +69,20 @@ void ResponseHandler::controller(const HttpRequest &req,
 	//		// take out server with match port
 	//		// take out locatoin and send to push into queue
 	
-	//struct Config server = matchServer(req, servers);
-
-	//location = matchLocation(server, req.path);
-
+	struct Config server = matchServer(req, servers);
+	if (server.empty)
+	{
+		std::cout << "send: 404\n";
+	}
+	std::cout << "what is request: " << req.getBody() << std::endl;
+	std::cout << "what is path: " << req.getPath() << std::endl;
+	
+	struct Location location = matchLocation(server, req.getPath());
+	std::cout << "path that is match: " << location.path << std::endl;
+	if (location.empty)
+	{
+		std::cout << "send: 404\n";
+	}
 	//if (!methodAllowed(location, req.method))
 	//{
 	//send:
@@ -69,6 +98,6 @@ void ResponseHandler::controller(const HttpRequest &req,
 	//	handleGet(...) else if (req.getMethod() == "POST") handlePost(...) else if (req.getMethod() == "DELETE") handleDelete(...) else respond 501;
 	//send(ResponseHandler, sock_fd)
 	(void)req;
-	std::cout << "in controller: " << servers[0].port << std::endl;
+	std::cout << "in controller: " << server.port << std::endl;
 
 }

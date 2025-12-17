@@ -200,7 +200,8 @@ void	Server::read_data_from_socket(int i)
 			
 			/* create an object from response handler */
 			ResponseHandler res;
-			res.controller(http_req[server_fd], servers);
+			//HttpRequest req(http_req[server_fd]);
+			res.controller(http_req[sender_fd], servers);
 
 		}
 

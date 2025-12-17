@@ -1,9 +1,14 @@
 #include "../include/Config.hpp"
 
-//Config::Config():port(4545), host("127.0.0.1")
-//{
+Location::Location():empty(true)
+{
 
-//}
+}
+
+Config::Config():empty(true)
+{
+
+}
 
 static std::string trim(std::string s)
 {
@@ -58,6 +63,7 @@ std::vector<struct Config> parseConfig(const char* conf)
 		{
 			state = SERVER;
 			currentServer = Config();
+			currentServer.empty = false;
 			continue;
 		}
 
@@ -92,6 +98,8 @@ std::vector<struct Config> parseConfig(const char* conf)
 
 			currentLocation = Location();
 			currentLocation.path = path;
+			currentLocation.empty = false;
+
 			state = LOCATOIN;
 			continue;
 		}

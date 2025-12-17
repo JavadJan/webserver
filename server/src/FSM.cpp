@@ -10,6 +10,31 @@ void Server::consume(size_t start, size_t end, int sock_fd)
 {
     http_req[sock_fd].eraseBuffer(start, end);
 }
+/* remove all ///// to consider just one */
+/* /////  or /form////text.txt */
+std::string normalPath(std::string path)
+{
+	std::string normalized;
+	bool prev_slash = false;
+	for (size_t i = 0; i < path.size(); ++i)
+	{
+		if (path[i] == '/')
+		{
+			if (!prev_slash)
+			{
+				normalized += '/';
+				prev_slash = true;
+			}
+			// else skip additional slashes
+		}
+		else
+		{
+			normalized += path[i];
+			prev_slash = false;
+		}
+	}
+	return normalized;
+}
 
 void Server::parseRequestLine(std::string buf, int sock_fd)
 {
@@ -17,7 +42,8 @@ void Server::parseRequestLine(std::string buf, int sock_fd)
     std::istringstream rl(buf);
     std::string method, path, protocol;
     rl >> method >> path >> protocol;
-
+	path = normalPath(path);
+	std::cout << "path normal here: " << path << std::endl;
     http_req[sock_fd].setMethod(method);
     http_req[sock_fd].setPath(path);
     http_req[sock_fd].setProtocol(protocol);
