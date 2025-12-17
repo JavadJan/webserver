@@ -2,10 +2,15 @@
 #include "../include/Server.hpp"
 #include "../include/Config.hpp"
 #include "../include/HttpRequest.hpp"
+#include "../include/ResponseHandler.hpp"
 
+//--------------------------------------#
+//		create server object			#
+//--------------------------------------#
 Server::Server(std::vector<struct Config> serversConfig)
 :
 _port(serversConfig[0].port),
+servers(serversConfig),
 client_len(sizeof(client_addr)),
 server_fd(-1),
 client_fd(-1)
@@ -22,6 +27,10 @@ client_fd(-1)
 	(void)serversConfig;
 }
 
+//--------------------------------------#
+//		define socket, bind, listen		#
+//--------------------------------------#
+/* define socket, bind to ip:port, listen to port */
 int Server::create_socket_bind()
 {
 	int status;
@@ -176,14 +185,23 @@ void	Server::read_data_from_socket(int i)
 		std::cout <<"client fd " << client_fd << "------------------" << sender_fd << std::endl;
 	
 		fsm(sender_fd); // 
-	
+		http_req[sender_fd].setClientSocket(sender_fd); // needs this socket to send response
+		http_req[sender_fd].setPortServer(_port); // there current server with[PORT] responses
+
 		//std::cout << "state: " << clientState[sender_fd] << std::endl;
 		if (http_req[sender_fd].getState() == HttpRequest::DONE)
 		{
 			//ParseFSM(sender_fd); // use from http_req.buffer -> fille req.method
 			http_req[sender_fd].clearBuffer();
 			http_req[sender_fd].setState(HttpRequest::REQ_LINE);
-			std::cout << "\n\nHTTP REQ: |" << http_req[sender_fd] << "|\n"<< std::endl;
+
+			std::cout << "\n\nHTTP REQ: |" << http_req[sender_fd] 
+				<< "|\n\nCreate ResponseHandeler and controller "<< std::endl;
+			
+			/* create an object from response handler */
+			ResponseHandler res;
+			res.controller(http_req[server_fd], servers);
+
 		}
 
 

@@ -30,6 +30,9 @@ class Server{
 		
 		/* data for make connection, ip, port, sockets */
 		int _port;
+		std::vector<struct Config> servers;
+		std::string host;
+
 		struct sockaddr_in server_addr, client_addr;
 		socklen_t client_len;
 		char buffer[1024]; // this buffer should bo also per socket?

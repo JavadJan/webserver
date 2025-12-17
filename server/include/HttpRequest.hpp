@@ -15,7 +15,6 @@
 
 class HttpRequest
 {
-	
 	public:
 		enum STATE { REQ_LINE, HEADER, BODY, DONE, ERROR };
 		HttpRequest();
@@ -33,6 +32,7 @@ class HttpRequest
 		const std::string& getBody () const;
 		const std::string& getBuffer () const;
 		size_t getContetn () const;
+		int getPortServer() const;
 		/* stetter */
 		void setMethod(const std::string& _method);
 		void setPath(const std::string& path);
@@ -41,7 +41,8 @@ class HttpRequest
 		void setHeader(const std::string& key, const std::string& value);
 		void setBody(const std::string& body);
 		void setContent(size_t len);
-
+		void setClientSocket(int fd);
+		void setPortServer(int port);
 		void clearBuffer();
 		
 		void setState(enum STATE state);
@@ -50,11 +51,12 @@ class HttpRequest
 	private:
 		STATE state;
 		std::string recvBuffer;
-		
+		int portServer;
 		// request line; first line
 		std::string method;
 		std::string path;
 		std::string protocol;
+		int sock_fd_cleint;
 		// header
 		std::map<std::string, std::string>	header; // header["host"] : "127.0.0.1:8080"
 		size_t conten_len;
