@@ -13,6 +13,19 @@ private:
     std::string body;
 
 public:
+    // 
+    Request (){}
+    // Reset all data for next request
+
+    void clear(){
+        method.clear();
+        target.clear();
+        httpVersion.clear();
+        headers.clear();
+        body.clear();
+    }
+
+
     // ---------------------------
     //       Setters
     // ---------------------------
@@ -38,11 +51,6 @@ public:
         return headers;
     }
     const std::string &getBody() const { return body; }
-};
 
-    // -----------------------------------
-    // Parse the start-line:
-    // Example: "GET /index.html HTTP/1.1"
-    // -----------------------------------
 
 #endif
