@@ -79,6 +79,10 @@ int HttpRequest::getPortServer() const
 {
 	return portServer;
 }
+int HttpRequest::getCleintSocket() const
+{
+	return sock_fd_cleint;
+}
 const std::map<std::string, std::string>& HttpRequest::getHeader() const{
     return header;
 }

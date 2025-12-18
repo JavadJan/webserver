@@ -54,7 +54,7 @@ std::vector<struct Config> parseConfig(const char* conf)
 			continue; // jump next iteration
 
 		// erase comment
-		size_t comment = line.find('#');
+		size_t comment = line.find('#'); // #hello --------fsdfdfsdfsdfsdfsdfsdfsdfsdfs|
 		if(comment != std::string::npos)
 			line.erase(comment);
 
@@ -63,7 +63,7 @@ std::vector<struct Config> parseConfig(const char* conf)
 		{
 			state = SERVER;
 			currentServer = Config();
-			currentServer.empty = false;
+			currentServer.empty = false; // check later? 
 			continue;
 		}
 
@@ -93,6 +93,7 @@ std::vector<struct Config> parseConfig(const char* conf)
 		std::istringstream ss(line);
 		if (line.find("location") == 0)
 		{
+			// location /path
 			std::string keyword, path;
 			ss >> keyword >> path;
 

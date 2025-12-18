@@ -40,7 +40,16 @@ void Response::setHeader(std::map<std::string, std::string> header)
 {
 	this->header = header;
 }
-std::string Response::toString(std::string http_version)
+
+std::string Response::toString()
 {
-	// convert to a string with those attribute
+    std::stringstream ss;
+
+    ss << "HTTP/1.1 " << status << " OK\r\n";
+    ss << "Content-Length: " << body.size() << "\r\n";
+    ss << "Content-Type: text/html\r\n";
+    ss << "\r\n";
+    ss << body;
+
+    return ss.str();
 }

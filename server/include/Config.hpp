@@ -17,9 +17,16 @@
 //	#route
 //	location /
 //	{
-
+		//method GET,DELETE
+	
+//	}
+//	location /doc
+//	{
+		//method GET,DELETE
+	
 //	}
 //}
+//directive[method] = "GET, DELETE";
 struct	Location
 {
 	std::string path;

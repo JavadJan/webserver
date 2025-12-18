@@ -94,7 +94,7 @@ void Server::run()
 		for (size_t i = 0; i < poll_fds.size(); i++)
 		{
 			// if there was not client socket
-			if (!(poll_fds[i].revents & POLLIN))
+			if (!(poll_fds[i].revents & POLLIN)) // POLLOUT
 				continue;
 
 			// The socket is ready for reading!
@@ -192,17 +192,29 @@ void	Server::read_data_from_socket(int i)
 		if (http_req[sender_fd].getState() == HttpRequest::DONE)
 		{
 			//ParseFSM(sender_fd); // use from http_req.buffer -> fille req.method
-			http_req[sender_fd].clearBuffer();
-			http_req[sender_fd].setState(HttpRequest::REQ_LINE);
-
+			
 			std::cout << "\n\nHTTP REQ: |" << http_req[sender_fd] 
 				<< "|\n\nCreate ResponseHandeler and controller "<< std::endl;
 			
 			/* create an object from response handler */
-			ResponseHandler res;
+			//ResponseHandler res;
 			//HttpRequest req(http_req[server_fd]);
-			res.controller(http_req[sender_fd], servers);
-
+			//req, servers []
+			//res.controller(http_req[sender_fd], servers);
+			//std::string response = res.getResponse().toString();
+			Response res;
+			res.setStatus(200);
+			//res.setHeader();
+			res.setBody("HELLO");
+			std::string response = res.toString();
+			std::cout << "response: " << response << std::endl;
+			/* send basic response */
+			if (send(sender_fd, response.c_str(), response.size(), 0) == -1)
+				std::cout << strerror(errno);
+			
+			http_req[sender_fd].clearBuffer();
+			http_req[sender_fd].setState(HttpRequest::REQ_LINE);
+			//close(sender_fd);
 		}
 
 

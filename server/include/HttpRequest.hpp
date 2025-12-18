@@ -32,6 +32,7 @@ class HttpRequest
 		const std::string& getBody () const;
 		const std::string& getBuffer () const;
 		size_t getContetn () const;
+		int getCleintSocket () const;
 		int getPortServer() const;
 		/* stetter */
 		void setMethod(const std::string& _method);

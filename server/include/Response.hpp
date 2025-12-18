@@ -19,6 +19,6 @@ class Response{
 		void setStatus(int status);
 		void setBody(std::string body);
 		void setHeader(std::map<std::string, std::string> header);
-		std::string toString(std::string http_version); // to string
+		std::string toString(); // to string
 };
 #endif
