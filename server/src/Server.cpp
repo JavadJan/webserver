@@ -198,15 +198,10 @@ void	Server::read_data_from_socket(int i)
 			
 			/* create an object from response handler */
 			ResponseHandler res;
-			HttpRequest req(http_req[server_fd]);
 			//req, servers []
-			res.controller(http_req[sender_fd], servers);
-			std::string response = res.getResponse().toString();
-			//Response res;
-			//res.setStatus(200);
-			////res.setHeader();
-			//res.setBody("HELLO");
-			//std::string response = res.toString();
+			res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
+			std::string response = res.getResponse().toString(); // make foramt http res to string
+			
 			std::cout << "response: " << response << std::endl;
 			/* send basic response */
 			if (send(sender_fd, response.c_str(), response.size(), 0) == -1)
@@ -214,31 +209,21 @@ void	Server::read_data_from_socket(int i)
 			
 			http_req[sender_fd].clearBuffer();
 			http_req[sender_fd].setState(HttpRequest::REQ_LINE);
-			//close(sender_fd);
+
+			// close connection to reset for the next request
+			// by defauld connection close is false, in fsm will change if exist
+			if (http_req[sender_fd].getHeader()["Connection"] == "close")
+			{
+				close(sender_fd);                 // TCP layer
+				del_from_poll_fds(i);             // event layer
+				http_req.erase(sender_fd);        // HTTP state cleanup
+				return;
+			}
+			else
+			{
+				http_req[sender_fd].resetForNextRequest(); // prepare for next request
+			}
 		}
-
-
-		//memset(&msg_to_send, '\0', sizeof msg_to_send);
-		////sprintf(msg_to_send, "[%d] says: %s", sender_fd, buffer);
-		////snprintf(msg_to_send, sizeof(msg_to_send), "[%d] says: %s", sender_fd,
-		////	buffer);
-		//std::ostringstream oss;
-		//oss << "[" << sender_fd << "] says: " << chunk;
-		//std::string msg_to_send = oss.str();
-		//for (size_t j = 0; j < poll_fds.size(); j++)
-		//{
-		//	dest_fd = (poll_fds)[j].fd;
-		//	if (dest_fd != server_fd && dest_fd != sender_fd)
-		//	{
-		//		//status = send(dest_fd, msg_to_send., strlen(msg_to_send), 0);
-		//		//status = send(sender_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
-		//		status = send(dest_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
-		//		if (status == -1)
-		//		{
-		//			std::cout << "[Server] Send error to client fd" << strerror(errno) << std::endl;
-		//		}
-		//	}
-		//}
 	}
 	else
 	{

@@ -31,6 +31,22 @@ HttpRequest& HttpRequest::operator=(const HttpRequest &other)
 	return (*this);
 }
 
+
+void HttpRequest::resetForNextRequest()
+{
+    path.clear();
+    header.clear();
+    method.clear();
+    recvBuffer.clear();
+    protocol.clear();
+
+    connection_close = false; // reset default
+    state = REQ_LINE;
+	body.clear();
+	conten_len = 0;
+}
+
+
 bool isMethod(std::string method)
 {
 	 std::string normalized = method;

@@ -51,6 +51,8 @@ class HttpRequest
 		void setCloseConnection(bool cstate);
 		void appendBuffer(std::string chunk, int bytes_read);
 		void eraseBuffer(size_t start, size_t end);
+
+		void resetForNextRequest();
 	private:
 		STATE state;
 		std::string recvBuffer;
@@ -66,8 +68,6 @@ class HttpRequest
 		std::string	body;
 
 		bool connection_close;
-
-
 };
 
 

@@ -28,6 +28,19 @@ Response &Response::operator=(const Response &other)
 //------------------------------#
 //			methods				#
 //------------------------------#
+std::string Response::reasonPhrase(int code)
+{
+    switch (code)
+    {
+        case 200: return "OK";
+        case 404: return "Not Found";
+        case 403: return "Forbidden";
+        case 405: return "Method Not Allowed";
+        case 501: return "Not Implemented";
+        default:  return "Error";
+    }
+}
+
 void Response::setStatus(int status)
 {
 	this->status = status;
@@ -45,7 +58,7 @@ std::string Response::toString()
 {
     std::stringstream ss;
 
-    ss << "HTTP/1.1 " << status << " OK\r\n";
+    ss << "HTTP/1.1 " << status << " " << reasonPhrase(status) << "\r\n";
     ss << "Content-Length: " << body.size() << "\r\n";
     ss << "Content-Type: text/html\r\n";
     ss << "\r\n";

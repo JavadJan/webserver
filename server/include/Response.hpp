@@ -15,10 +15,13 @@ class Response{
 		~Response();
 		Response(const Response& other);
 		Response& operator=(const Response& other);
+		/* methods */
+		std::string reasonPhrase(int status);
+		std::string toString(); // to string
+
 		/* setter */
 		void setStatus(int status);
 		void setBody(std::string body);
 		void setHeader(std::map<std::string, std::string> header);
-		std::string toString(); // to string
 };
 #endif

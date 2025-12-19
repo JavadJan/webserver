@@ -68,12 +68,27 @@ static bool methodAllowed(struct Location location, std::string method)
 	return false;
 };
 
-static std::string resolvePath(const std::string &req_path)
+static std::string resolvePath(const std::string &req_path, struct Location location)
 {
-    std::string full = "./tmp/www";
-    // Remove location prefix
-    full += req_path;
-    return full;
+	// root is in config
+    std::string root = location.directive["root"];
+	std::cout << "root: " << root << std::endl;
+	
+	if (req_path.find(location.path) == 0)
+	{
+		root += "/";
+		root += req_path.substr(location.path.length()); // ./tmp/www + /form
+		std::cout << "root: " << root << std::endl;
+		
+	}
+    else
+	{
+		root += req_path;
+		std::cout << "root: " << root << std::endl;
+
+	}
+
+    return root;
 }
 
 
@@ -83,14 +98,6 @@ static std::string resolvePath(const std::string &req_path)
 void ResponseHandler::controller(const HttpRequest &req,
 	std::vector<struct Config> servers)
 {
-	//handleRequest(sock_fd) // req has the sockfd,
-	//	: req = http_req[sock_fd]
-	//		// not the list of request sinlgle request after the fsm
-	//		// http_req.getPath(); //
-
-	//		// take out server with match port
-	//		// take out locatoin and send to push into queue
-	
 	struct Config server = matchServer(req, servers);
 	if (server.empty)
 	{
@@ -99,10 +106,10 @@ void ResponseHandler::controller(const HttpRequest &req,
 	}
 	
 	std::cout << "what is request: " << req.getBody() << std::endl;
-	std::cout << "what is path: " << req.getPath() << std::endl;
+	std::cout << "what is req path: " << req.getPath() << std::endl;
 	
 	struct Location location = matchLocation(server, req.getPath());
-	std::cout << "path that is match: " << location.path << std::endl;
+	std::cout << "req.path that is match: " << location.path << std::endl;
 	if (location.empty)
 	{
 		res.setStatus(404);
@@ -112,27 +119,28 @@ void ResponseHandler::controller(const HttpRequest &req,
 	if (!methodAllowed(location, req.getMethod()))
 	{
 		res.setStatus(405);
-		
 		std::cout << "send:	respond 405 " <<std::endl;
 	}
-	else
+	else // so if methods allowd 
+	{
+		full_path = resolvePath(req.getPath(), location); // 
 		std::cout << "allowed method: " << location.directive["allow_methods"] << std::endl;
+		if (req.getMethod() == "GET")
+			handelGet();
+		else if (req.getMethod() == "POST")
+			handlePost();
+		else if (req.getMethod() == "DELETE")
+			handleDelete();
+		else 
+		{
+			res.setStatus(501);
+			std::cout << "respond 501\n";
+	
+		}	
+	}
 
 	//adjust path
-	full_path = resolvePath(req.getPath());
 
-	if (req.getMethod() == "GET")
-		handelGet();
-	else if (req.getMethod() == "POST")
-		handlePost();
-	else if (req.getMethod() == "DELETE")
-		handleDelete();
-	else 
-	{
-		res.setStatus(501);
-		std::cout << "respond 501\n";
-
-	}	
 	//send(ResponseHandler, sock_fd)
 	(void)req;
 	std::cout << "in controller: " << server.port << std::endl;
@@ -150,14 +158,7 @@ void ResponseHandler::handelGet()
 		res.setBody("Not Found");
 		return ;
 	}
-	//regular file
-	std::ifstream file(full_path.c_str());
-    if (!file)
-    {
-        res.setStatus(403);
-        res.setBody("Forbidden");
-        return;
-    }
+	
 	
 	// directory
 	if (S_ISDIR(st.st_mode))
@@ -173,6 +174,14 @@ void ResponseHandler::handelGet()
             return;
         }
     }
+	//regular file
+	std::ifstream file(full_path.c_str()); // here read why?
+    if (!file)
+    {
+        res.setStatus(403);
+        res.setBody("Forbidden");
+        return;
+    }
 	std::stringstream buffer;
     buffer << file.rdbuf();
 
@@ -182,7 +191,7 @@ void ResponseHandler::handelGet()
 
 void ResponseHandler::handleDelete()
 {
-	
+
 }
 void ResponseHandler::handlePost()
 {
