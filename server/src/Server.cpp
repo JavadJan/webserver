@@ -124,8 +124,8 @@ const char* Server::ExceptionServer::what() const throw(){
 void	Server::accept_new_connection()
 {
 	//char	msg_to_send[BUFSIZ];
-	std::string msg_to_send;
-	int		status;
+	//std::string msg_to_send;
+	//int		status;
 
 	int new_fd = accept(server_fd, NULL, NULL);
 	if (new_fd == -1)
@@ -160,10 +160,10 @@ void	Server::accept_new_connection()
 void	Server::read_data_from_socket(int i)
 {
 	char	chunk[BUFSIZ];
-	char	msg_to_send[BUFSIZ];
+	//char	msg_to_send[BUFSIZ];
 	int		bytes_read;
-	int		status = 0;
-	int		dest_fd;
+	//int		status = 0;
+	//int		dest_fd;
 	int		sender_fd;
 
 	sender_fd = poll_fds[i].fd;
@@ -197,16 +197,16 @@ void	Server::read_data_from_socket(int i)
 				<< "|\n\nCreate ResponseHandeler and controller "<< std::endl;
 			
 			/* create an object from response handler */
-			//ResponseHandler res;
-			//HttpRequest req(http_req[server_fd]);
+			ResponseHandler res;
+			HttpRequest req(http_req[server_fd]);
 			//req, servers []
-			//res.controller(http_req[sender_fd], servers);
-			//std::string response = res.getResponse().toString();
-			Response res;
-			res.setStatus(200);
-			//res.setHeader();
-			res.setBody("HELLO");
-			std::string response = res.toString();
+			res.controller(http_req[sender_fd], servers);
+			std::string response = res.getResponse().toString();
+			//Response res;
+			//res.setStatus(200);
+			////res.setHeader();
+			//res.setBody("HELLO");
+			//std::string response = res.toString();
 			std::cout << "response: " << response << std::endl;
 			/* send basic response */
 			if (send(sender_fd, response.c_str(), response.size(), 0) == -1)

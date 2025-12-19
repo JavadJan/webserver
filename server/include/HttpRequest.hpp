@@ -34,6 +34,7 @@ class HttpRequest
 		size_t getContetn () const;
 		int getCleintSocket () const;
 		int getPortServer() const;
+		bool getConnectionState();
 		/* stetter */
 		void setMethod(const std::string& _method);
 		void setPath(const std::string& path);
@@ -47,6 +48,7 @@ class HttpRequest
 		void clearBuffer();
 		
 		void setState(enum STATE state);
+		void setCloseConnection(bool cstate);
 		void appendBuffer(std::string chunk, int bytes_read);
 		void eraseBuffer(size_t start, size_t end);
 	private:
@@ -62,6 +64,9 @@ class HttpRequest
 		std::map<std::string, std::string>	header; // header["host"] : "127.0.0.1:8080"
 		size_t conten_len;
 		std::string	body;
+
+		bool connection_close;
+
 
 };
 

@@ -1,6 +1,6 @@
 #include "../include/HttpRequest.hpp"
 
-HttpRequest::HttpRequest(): state(REQ_LINE), conten_len(0)
+HttpRequest::HttpRequest(): state(REQ_LINE), conten_len(0), connection_close(false)
 {
 	std::cout << "default constructor called" << state << std::endl;
 }
@@ -74,7 +74,10 @@ void HttpRequest::eraseBuffer(size_t start, size_t end)
 //--------------------------#
 //		getter				#
 //--------------------------#
-
+bool HttpRequest::getConnectionState()
+{
+	return connection_close;
+}
 int HttpRequest::getPortServer() const
 {
 	return portServer;
@@ -123,6 +126,10 @@ void HttpRequest::clearBuffer(){recvBuffer.clear();}
 //--------------------------#
 //		setter				#
 //--------------------------#
+void HttpRequest::setCloseConnection(bool cstate)
+{
+	this->connection_close = cstate;
+}
 void HttpRequest::setState(enum STATE state){ this->state = state;}
 void HttpRequest::setClientSocket(int sock_fd){ this->sock_fd_cleint = sock_fd;}
 void HttpRequest::setPortServer(int port){ this->portServer = port;}
