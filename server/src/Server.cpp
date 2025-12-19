@@ -127,34 +127,34 @@ void	Server::accept_new_connection()
 	std::string msg_to_send;
 	int		status;
 
-	client_fd = accept(server_fd, NULL, NULL);
-	if (client_fd == -1)
+	int new_fd = accept(server_fd, NULL, NULL);
+	if (new_fd == -1)
 	{
 		std::cerr << "[Server] Accept error: \n" << strerror(errno);
 		return ;
 	}
 
-	add_to_poll_fds(client_fd); // no need to pass this fd
-	std::cout << "[Server] Accepted new connection on client socket" <<  client_fd << std::endl;
+	add_to_poll_fds(new_fd); // no need to pass this fd
+	std::cout << "[Server] Accepted new connection on client socket" <<  new_fd << std::endl;
 	//memset(&msg_to_send, '\0', sizeof msg_to_send);
 
 	//sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", client_fd);
-	std::ostringstream oss;
-	oss << "[" << client_fd << "] says: " << buffer;
-	msg_to_send = oss.str();
+	//std::ostringstream oss;
+	//oss << "[" << client_fd << "] says: " << buffer;
+	//msg_to_send = oss.str();
 
-	status = send(client_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
-	//status = send(client_fd, msg_to_send, strlen(msg_to_send), 0);
-	if (status == -1)
-	{
-		std::cout << "[Server] Send error to client" << client_fd << strerror(errno) << std::endl;
-	}
+	//status = send(client_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
+	////status = send(client_fd, msg_to_send, strlen(msg_to_send), 0);
+	//if (status == -1)
+	//{
+	//	std::cout << "[Server] Send error to client" << client_fd << strerror(errno) << std::endl;
+	//}
 
 	//this->http_req[client_fd] = HttpRequest(); // create am object, TCP streaming is started 
 	//http_req.emplace(client_fd, HttpRequest());
-	http_req.insert(std::make_pair(client_fd, HttpRequest()));
+	http_req.insert(std::make_pair(new_fd, HttpRequest()));
 	
-	this->http_req[client_fd].clearBuffer();
+	this->http_req[new_fd].clearBuffer();
 }
 
 void	Server::read_data_from_socket(int i)
@@ -218,27 +218,27 @@ void	Server::read_data_from_socket(int i)
 		}
 
 
-		memset(&msg_to_send, '\0', sizeof msg_to_send);
-		//sprintf(msg_to_send, "[%d] says: %s", sender_fd, buffer);
-		//snprintf(msg_to_send, sizeof(msg_to_send), "[%d] says: %s", sender_fd,
-		//	buffer);
-		std::ostringstream oss;
-		oss << "[" << sender_fd << "] says: " << chunk;
-		std::string msg_to_send = oss.str();
-		for (size_t j = 0; j < poll_fds.size(); j++)
-		{
-			dest_fd = (poll_fds)[j].fd;
-			if (dest_fd != server_fd && dest_fd != sender_fd)
-			{
-				//status = send(dest_fd, msg_to_send., strlen(msg_to_send), 0);
-				//status = send(sender_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
-				status = send(dest_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
-				if (status == -1)
-				{
-					std::cout << "[Server] Send error to client fd" << strerror(errno) << std::endl;
-				}
-			}
-		}
+		//memset(&msg_to_send, '\0', sizeof msg_to_send);
+		////sprintf(msg_to_send, "[%d] says: %s", sender_fd, buffer);
+		////snprintf(msg_to_send, sizeof(msg_to_send), "[%d] says: %s", sender_fd,
+		////	buffer);
+		//std::ostringstream oss;
+		//oss << "[" << sender_fd << "] says: " << chunk;
+		//std::string msg_to_send = oss.str();
+		//for (size_t j = 0; j < poll_fds.size(); j++)
+		//{
+		//	dest_fd = (poll_fds)[j].fd;
+		//	if (dest_fd != server_fd && dest_fd != sender_fd)
+		//	{
+		//		//status = send(dest_fd, msg_to_send., strlen(msg_to_send), 0);
+		//		//status = send(sender_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
+		//		status = send(dest_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
+		//		if (status == -1)
+		//		{
+		//			std::cout << "[Server] Send error to client fd" << strerror(errno) << std::endl;
+		//		}
+		//	}
+		//}
 	}
 	else
 	{
