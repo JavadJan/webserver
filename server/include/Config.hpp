@@ -37,7 +37,7 @@ struct	Location
 
 struct	Config
 {
-	int	port;
+	std::string port;
 	std::string host;
 	std::map<std::string, std::string> directives;
 	std::vector<struct	Location> locations;

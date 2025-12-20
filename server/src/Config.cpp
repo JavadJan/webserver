@@ -121,7 +121,7 @@ std::vector<struct Config> parseConfig(const char* conf)
 
                 currentServer.host = value.substr(0, pos);
 				std::cout << "port: " << value.substr(pos + 1) << std::endl;
-                currentServer.port = atoi(value.substr(pos + 1).c_str());
+                currentServer.port = value.substr(pos + 1);
             }
             else
             {

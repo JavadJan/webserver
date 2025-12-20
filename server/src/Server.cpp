@@ -11,22 +11,27 @@ Server::Server(std::vector<struct Config> serversConfig)
 :
 _port(serversConfig[0].port),
 servers(serversConfig),
-client_len(sizeof(client_addr)),
-server_fd(-1),
-client_fd(-1)
+server_fd(-1)
 {
 
 	// fill here with config info? 
 	// Prepare the address and port for the server socket
-	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family = AF_INET;                     // IPv4
-	server_addr.sin_port = htons(_port);
-	server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // 127.0.0.1, localhost
+	
+	//server_addr.sin_family = AF_INET;                     // IPv4
+	//server_addr.sin_port = htons(_port);
+	//server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // 127.0.0.1, localhost
+	memset(&hints, 0, sizeof(hints));
+	
+	hints.ai_family = AF_UNSPEC;        // IPv4 or IPv6
+    hints.ai_socktype = SOCK_STREAM;    // TCP
+    hints.ai_flags = AI_PASSIVE;        // Automatically fills IP address
 
-	/* for non-blocking */
-	poll_count = 1;
-	//poll_size = 5;
-	(void)serversConfig;
+	
+    int status = getaddrinfo(NULL, _port.c_str(), &hints, &res);
+    if (status != 0) {
+        std::cout << "getaddrinfo: " <<  gai_strerror(status) << std::endl;
+        throw ExceptionServer();
+    }
 }
 
 //--------------------------------------#
@@ -38,14 +43,14 @@ int Server::create_socket_bind()
 	int status;
 
 
-	server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
+	server_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (server_fd == -1)
 	{
 		std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
 		return (-1);
 	}
 	// Bind socket to address and port
-	status = bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	status = bind(server_fd,  res->ai_addr, res->ai_addrlen);
 	if (status != 0)
 	{
 		std::cout << "[Server] Bind Error: " << strerror(errno) << std::endl;
@@ -164,7 +169,6 @@ void	Server::read_data_from_socket(int i)
 
 		//std::cout << "send to fsm: " << http_req[sender_fd].getBuffer() << "chunk: " << chunk << std::endl;
 		
-		std::cout <<"client fd " << client_fd << "------------------" << sender_fd << std::endl;
 	
 		fsm(sender_fd); // 
 		http_req[sender_fd].setClientSocket(sender_fd); // needs this socket to send response

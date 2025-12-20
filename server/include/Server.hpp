@@ -29,16 +29,24 @@ class Server{
 	private:
 		
 		/* data for make connection, ip, port, sockets */
-		int _port;
+		std::string _port;
+
+		// for every port get run a server
+
+
 		// replace _port -> std::map<int, int> serverPort // {server : port}to run multiple server
 		std::vector<struct Config> servers;
 		std::string host;
 
-		struct sockaddr_in server_addr, client_addr;
-		socklen_t client_len;
+		//struct sockaddr_in server_addr, client_addr;
+		//socklen_t client_len;
 		char buffer[1024]; // this buffer should bo also per socket?
 		int server_fd; // multi socket? std::map<int, int> server_fds; // {server : soxket}
-		int client_fd;
+		//int client_fd;
+
+		// with getaddinfo()
+		struct addrinfo hints;
+		struct addrinfo *res;
 
 		/* track the state, smart state, persisit buffer per socket/client? */
 		std::map<int, HttpRequest> http_req; // for every socket should be created an objet of request

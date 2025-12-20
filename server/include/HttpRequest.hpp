@@ -33,7 +33,7 @@ class HttpRequest
 		const std::string& getBuffer () const;
 		size_t getContetn () const;
 		int getCleintSocket () const;
-		int getPortServer() const;
+		std::string getPortServer() const;
 		bool getConnectionState();
 		/* stetter */
 		void setMethod(const std::string& _method);
@@ -44,7 +44,7 @@ class HttpRequest
 		void setBody(const std::string& body);
 		void setContent(size_t len);
 		void setClientSocket(int fd);
-		void setPortServer(int port);
+		void setPortServer(std::string port);
 		void clearBuffer();
 		
 		void setState(enum STATE state);
@@ -56,7 +56,7 @@ class HttpRequest
 	private:
 		STATE state;
 		std::string recvBuffer;
-		int portServer;
+		std::string portServer;
 		// request line; first line
 		std::string method;
 		std::string path;

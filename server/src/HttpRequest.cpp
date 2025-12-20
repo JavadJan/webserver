@@ -94,7 +94,7 @@ bool HttpRequest::getConnectionState()
 {
 	return connection_close;
 }
-int HttpRequest::getPortServer() const
+std::string HttpRequest::getPortServer() const
 {
 	return portServer;
 }
@@ -148,7 +148,7 @@ void HttpRequest::setCloseConnection(bool cstate)
 }
 void HttpRequest::setState(enum STATE state){ this->state = state;}
 void HttpRequest::setClientSocket(int sock_fd){ this->sock_fd_cleint = sock_fd;}
-void HttpRequest::setPortServer(int port){ this->portServer = port;}
+void HttpRequest::setPortServer(std::string port){ this->portServer = port;}
 void HttpRequest::appendBuffer(std::string chunk, int bytes_read)
 {
     if (bytes_read > static_cast<int>(chunk.size()))
