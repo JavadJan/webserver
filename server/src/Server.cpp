@@ -15,6 +15,8 @@ client_len(sizeof(client_addr)),
 server_fd(-1),
 client_fd(-1)
 {
+
+	// fill here with config info? 
 	// Prepare the address and port for the server socket
 	memset(&server_addr, 0, sizeof(server_addr));
 	server_addr.sin_family = AF_INET;                     // IPv4
@@ -34,6 +36,7 @@ client_fd(-1)
 int Server::create_socket_bind()
 {
 	int status;
+
 
 	server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
 	if (server_fd == -1)
@@ -107,10 +110,7 @@ void Server::run()
 			else
 			{
 				// Socket is a client socket, read it
-				//HttpRequest request;
-				// in reading time create HttpRequest obj
 				read_data_from_socket(i);
-				
 			}
 		}
 	}
@@ -123,10 +123,7 @@ const char* Server::ExceptionServer::what() const throw(){
  // our server's port
 void	Server::accept_new_connection()
 {
-	//char	msg_to_send[BUFSIZ];
-	//std::string msg_to_send;
-	//int		status;
-
+	// in a loop accept server fd? 
 	int new_fd = accept(server_fd, NULL, NULL);
 	if (new_fd == -1)
 	{
@@ -136,22 +133,7 @@ void	Server::accept_new_connection()
 
 	add_to_poll_fds(new_fd); // no need to pass this fd
 	std::cout << "[Server] Accepted new connection on client socket" <<  new_fd << std::endl;
-	//memset(&msg_to_send, '\0', sizeof msg_to_send);
-
-	//sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", client_fd);
-	//std::ostringstream oss;
-	//oss << "[" << client_fd << "] says: " << buffer;
-	//msg_to_send = oss.str();
-
-	//status = send(client_fd, msg_to_send.c_str(), msg_to_send.size(), 0);
-	////status = send(client_fd, msg_to_send, strlen(msg_to_send), 0);
-	//if (status == -1)
-	//{
-	//	std::cout << "[Server] Send error to client" << client_fd << strerror(errno) << std::endl;
-	//}
-
-	//this->http_req[client_fd] = HttpRequest(); // create am object, TCP streaming is started 
-	//http_req.emplace(client_fd, HttpRequest());
+	
 	http_req.insert(std::make_pair(new_fd, HttpRequest()));
 	
 	this->http_req[new_fd].clearBuffer();

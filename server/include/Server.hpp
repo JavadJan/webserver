@@ -30,13 +30,14 @@ class Server{
 		
 		/* data for make connection, ip, port, sockets */
 		int _port;
+		// replace _port -> std::map<int, int> serverPort // {server : port}to run multiple server
 		std::vector<struct Config> servers;
 		std::string host;
 
 		struct sockaddr_in server_addr, client_addr;
 		socklen_t client_len;
 		char buffer[1024]; // this buffer should bo also per socket?
-		int server_fd;
+		int server_fd; // multi socket? std::map<int, int> server_fds; // {server : soxket}
 		int client_fd;
 
 		/* track the state, smart state, persisit buffer per socket/client? */
