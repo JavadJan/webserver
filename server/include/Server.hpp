@@ -32,7 +32,7 @@ class Server{
 		std::string _port;
 
 		// for every port get run a server
-
+		std::map<int, Config> serverfd_config;
 
 		// replace _port -> std::map<int, int> serverPort // {server : port}to run multiple server
 		std::vector<struct Config> servers;
@@ -46,7 +46,7 @@ class Server{
 
 		// with getaddinfo()
 		struct addrinfo hints;
-		struct addrinfo *res;
+		std::vector<struct addrinfo * > res;
 
 		/* track the state, smart state, persisit buffer per socket/client? */
 		std::map<int, HttpRequest> http_req; // for every socket should be created an objet of request
@@ -57,7 +57,7 @@ class Server{
 		int poll_count; 
 
 		/* private function */
-		void accept_new_connection();
+		void accept_new_connection(int listen_fd);
 		void add_to_poll_fds(int new_fd);
 		void del_from_poll_fds(int i);
 		void read_data_from_socket(int i); // parsing heppen here
@@ -73,6 +73,9 @@ class Server{
 		void parseHeader(std::string buf, int sock_fd);
 		public:
 			Server(std::vector<struct Config> serversConfig);
+
+			void setServerConfig(Config conf);
+
 			void run();
 			class ExceptionServer: public std::exception{
 				public:

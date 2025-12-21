@@ -138,10 +138,19 @@ HttpRequest::STATE HttpRequest::getState() const
 	return state;
 }
 
+Config * HttpRequest::getServerConfig()
+{
+	return server;
+}
+
 void HttpRequest::clearBuffer(){recvBuffer.clear();}
 //--------------------------#
 //		setter				#
 //--------------------------#
+void HttpRequest::setServerConfig(Config *server)
+{
+	this->server = server;
+}
 void HttpRequest::setCloseConnection(bool cstate)
 {
 	this->connection_close = cstate;

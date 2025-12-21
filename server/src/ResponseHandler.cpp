@@ -46,18 +46,18 @@ static struct Location matchLocation(struct Config server,std::string path)
 	return location;
 }
 
-static struct Config matchServer(const HttpRequest &req, std::vector<struct Config> servers)
-{
-	struct Config server;
-	size_t i = 0;
-	while (i < servers.size())
-	{
-		if (servers[i].port == req.getPortServer())
-			server =  servers[i];
-		i++;
-	}
-	return server;	
-}
+//static struct Config matchServer(const HttpRequest &req, std::vector<struct Config> servers)
+//{
+//	struct Config server;
+//	size_t i = 0;
+//	while (i < servers.size())
+//	{
+//		if (servers[i].port == req.getPortServer())
+//			server =  servers[i];
+//		i++;
+//	}
+//	return server;	
+//}
 
 static bool methodAllowed(struct Location location, std::string method)
 {
@@ -95,15 +95,14 @@ static std::string resolvePath(const std::string &req_path, struct Location loca
 /* methods */
 /* after fsm parsed the req,
 	that signel http_req pass here and buil respons for it */
-void ResponseHandler::controller(const HttpRequest &req,
-	std::vector<struct Config> servers)
+void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 {
-	struct Config server = matchServer(req, servers);
-	if (server.empty)
-	{
-		res.setStatus(404);
-		std::cout << "send: 404\n";
-	}
+	//struct Config server = matchServer(req, servers);
+	//if (server.empty)
+	//{
+	//	res.setStatus(404);
+	//	std::cout << "send: 404\n";
+	//}
 	
 	std::cout << "what is request: " << req.getBody() << std::endl;
 	std::cout << "what is req path: " << req.getPath() << std::endl;

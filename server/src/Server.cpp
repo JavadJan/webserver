@@ -9,7 +9,7 @@
 //--------------------------------------#
 Server::Server(std::vector<struct Config> serversConfig)
 :
-_port(serversConfig[0].port),
+//_port(serversConfig[0].port),
 servers(serversConfig),
 server_fd(-1)
 {
@@ -26,12 +26,19 @@ server_fd(-1)
     hints.ai_socktype = SOCK_STREAM;    // TCP
     hints.ai_flags = AI_PASSIVE;        // Automatically fills IP address
 
+	for (size_t i = 0; i < servers.size(); i++)
+	{
+		/* code */
+		struct addrinfo *tmp;
+		std::cout << "port: " << servers[i].port << std::endl;
+		int status = getaddrinfo(NULL, servers[i].port.c_str(), &hints, &tmp);
+		if (status != 0) {
+			std::cout << "getaddrinfo: " <<  gai_strerror(status) << std::endl;
+			throw ExceptionServer();
+		}
+		res.push_back(tmp);
+	}
 	
-    int status = getaddrinfo(NULL, _port.c_str(), &hints, &res);
-    if (status != 0) {
-        std::cout << "getaddrinfo: " <<  gai_strerror(status) << std::endl;
-        throw ExceptionServer();
-    }
 }
 
 //--------------------------------------#
@@ -42,27 +49,40 @@ int Server::create_socket_bind()
 {
 	int status;
 
-
-	server_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (server_fd == -1)
+	poll_fds.clear();
+	for (size_t i = 0; i < servers.size(); i++)
 	{
-		std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
-		return (-1);
+		/* code */
+		server_fd = socket(res[i]->ai_family, res[i]->ai_socktype, res[i]->ai_protocol);
+		if (server_fd == -1)
+		{
+			std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
+			return (-1);
+		}
+		// Bind socket to address and port
+		status = bind(server_fd,  res[i]->ai_addr, res[i]->ai_addrlen);
+		if (status != 0)
+		{
+			std::cout << "[Server] Bind Error: " << strerror(errno) << std::endl;
+			return (-1);
+		}
+		status = listen(server_fd, 10);
+		if (status != 0)
+		{
+			std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
+			return (3);
+		}
+		
+	
+		pollfd serverPoll;
+		serverPoll.fd = server_fd; // add server socket to pollfd
+		serverPoll.events = POLLIN; // it won't block recv();
+		serverPoll.revents = 0;
+	
+		poll_fds.push_back(serverPoll);
+		serverfd_config[server_fd] = servers[i];
 	}
-	// Bind socket to address and port
-	status = bind(server_fd,  res->ai_addr, res->ai_addrlen);
-	if (status != 0)
-	{
-		std::cout << "[Server] Bind Error: " << strerror(errno) << std::endl;
-		return (-1);
-	}
-	status = listen(server_fd, 10);
-	if (status != 0)
-	{
-		std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
-		return (3);
-	}
-	//run();
+	
 	return 0;
 }
 
@@ -71,14 +91,14 @@ void Server::run()
 	create_socket_bind();
 	int status;
 
-	poll_fds.clear();
+	//poll_fds.clear();
 
-    pollfd serverPoll;
-    serverPoll.fd = server_fd; // add server socket to pollfd
-    serverPoll.events = POLLIN; // it won't block recv();
-    serverPoll.revents = 0;
+    //pollfd serverPoll;
+    //serverPoll.fd = server_fd; // add server socket to pollfd
+    //serverPoll.events = POLLIN; // it won't block recv();
+    //serverPoll.revents = 0;
 
-    poll_fds.push_back(serverPoll);
+    //poll_fds.push_back(serverPoll);
 	while (1)
 	{ // Main loop
 		// Poll sockets to see if they are ready (2 second timeout)
@@ -95,7 +115,7 @@ void Server::run()
 		else if (status == 0)
 		{
 			// None of the sockets are ready
-			std::cout << "[Server on port: " << _port << "] listening ... " << std::endl;
+			std::cout << "[Server on port: " << servers[0].port << "] listening ... " << std::endl;
 			continue ; // skip the rest of loop after this line, start again to socket
 		}
 		// Loop on our array of sockets
@@ -106,11 +126,12 @@ void Server::run()
 				continue;
 
 			// The socket is ready for reading!
-			if (poll_fds[i].fd == server_fd)
+			//if (poll_fds[i].fd == server_fd)
+			if (serverfd_config.count(poll_fds[i].fd))
 			{
 				//a new client is trying to connect
 				// Socket is our listening server socket
-				accept_new_connection();
+				accept_new_connection(poll_fds[i].fd);
 			}
 			else
 			{
@@ -126,10 +147,10 @@ const char* Server::ExceptionServer::what() const throw(){
 }
 
  // our server's port
-void	Server::accept_new_connection()
+void	Server::accept_new_connection(int listen_fd)
 {
 	// in a loop accept server fd? 
-	int new_fd = accept(server_fd, NULL, NULL);
+	int new_fd = accept(listen_fd, NULL, NULL);
 	if (new_fd == -1)
 	{
 		std::cerr << "[Server] Accept error: \n" << strerror(errno);
@@ -138,7 +159,7 @@ void	Server::accept_new_connection()
 
 	add_to_poll_fds(new_fd); // no need to pass this fd
 	std::cout << "[Server] Accepted new connection on client socket" <<  new_fd << std::endl;
-	
+	http_req[new_fd].setServerConfig(&serverfd_config[listen_fd]);
 	http_req.insert(std::make_pair(new_fd, HttpRequest()));
 	
 	this->http_req[new_fd].clearBuffer();
@@ -172,7 +193,7 @@ void	Server::read_data_from_socket(int i)
 	
 		fsm(sender_fd); // 
 		http_req[sender_fd].setClientSocket(sender_fd); // needs this socket to send response
-		http_req[sender_fd].setPortServer(_port); // there current server with[PORT] responses
+		http_req[sender_fd].setPortServer(_port); //?????// there current server with[PORT] responses
 
 		//std::cout << "state: " << clientState[sender_fd] << std::endl;
 		if (http_req[sender_fd].getState() == HttpRequest::DONE)
@@ -185,7 +206,8 @@ void	Server::read_data_from_socket(int i)
 			/* create an object from response handler */
 			ResponseHandler res;
 			//req, servers []
-			res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
+			//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
+			res.controller(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
 			std::string response = res.getResponse().toString(); // make foramt http res to string
 			
 			std::cout << "response: " << response << std::endl;
@@ -241,78 +263,3 @@ void Server::del_from_poll_fds(int i)
     poll_fds[i] = poll_fds.back();
     poll_fds.pop_back();
 }
-
-/* 
-	std::vector<pollfd> poll_fds;
-	int num = poll(poll_fds.data(), poll_fds.size(), 2000);
-	num = 0		-> no detect fd to read; so the timeout has expired
-	num = -1	-> error happend
-	num > 0		-> fins fd to read
-
-	struct pollfd {
-		int   fd;        -> File descriptor to monitor
-		short events;    -> Requested events (what you want to watch for)
-		short revents;   -> Returned events (what actually happened)
-	};
-	fd : the file descriptor you want to watch for, e.g., file, pipe, socket
-	events: a bitmask event you want to watch for. 
-			e.g., 	POLLIN : ready for reading (it won't block recv() ) 0001
-					POLLOUT: ready for writing (it won't block send() ) 0100
-	revents:	fild by kernal after poll();
-				tells you which event happend on that file descriptor
-
-	bitmask? 
-		A bitmask is just an integer where each bit represents a flag (a yes/no condition).
-		Instead of storing multiple booleans separately, you pack them into one number.
-		You can then use bitwise operators (|(OR), &(AND)) to combine or test flags.
-
-	--------------------------
-	we’re checking all sockets that are ready (poll_fds[i].revents & POLLIN).
-	But not all sockets are the same:
-		- Listening socket → readiness means a new client wants to connect. You must call accept().
-		- Client socket → readiness means this client sent data. You must call recv()
-
-*/
-
-/* 
-	STEP 1 — HTTP request parsing (FSM) first
-		- method
-		- path
-		- protocol
-		- header parsing
-		- detect end of headers
-		- detect body based on Content-Length
-		TEST:
-			• curl
-			• browser
-			• raw netcat
-			• split TCP chunks
-			• malformed requests	
-
-	STEP 2 — Config parser
-
-		- build a simple object tree	- 
-		- fill server roots, ports, routes, etc.
-
-	STEP 3 — Request handler
-		- match URI to config
-		- check method allowed
-		- build static file path
-		- decide between static file, directory, or CGI
-
-	STEP 4 — Response generator
-		- build status line
-		- build headers
-		- build body
-		- store in per-client write buffer
-
-	STEP 5 — Non-blocking POLLOUT sending
-		- handle partial sends
-		- flush buffer
-		- close connection if needed
-
-	STEP 6 — CGI execution
-		- fork
-		- execve
-		- read pipes non-blocking
-*/

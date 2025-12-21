@@ -11,6 +11,7 @@
 #include <map>
 #include <ostream>
 
+struct Config;
 //enum	STATE {	REQ_LINE, HEADER, BODY, DONE, ERROR	};
 
 class HttpRequest
@@ -35,6 +36,7 @@ class HttpRequest
 		int getCleintSocket () const;
 		std::string getPortServer() const;
 		bool getConnectionState();
+		Config * getServerConfig();
 		/* stetter */
 		void setMethod(const std::string& _method);
 		void setPath(const std::string& path);
@@ -45,6 +47,8 @@ class HttpRequest
 		void setContent(size_t len);
 		void setClientSocket(int fd);
 		void setPortServer(std::string port);
+		void setServerConfig(Config *server);
+
 		void clearBuffer();
 		
 		void setState(enum STATE state);
@@ -67,6 +71,7 @@ class HttpRequest
 		size_t conten_len;
 		std::string	body;
 
+		struct Config* server;
 		bool connection_close;
 };
 

@@ -26,7 +26,7 @@ class ResponseHandler
 	Response getResponse();
 
 	// method controller
-	void controller(const HttpRequest &req,	std::vector<struct Config> servers);
+	void controller(const HttpRequest &req,	struct Config servers);
 	void handelGet();
 	void handlePost();
 	void handleDelete();
