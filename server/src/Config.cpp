@@ -58,6 +58,10 @@ std::vector<struct Config> parseConfig(const char* conf)
 		if(comment != std::string::npos)
 			line.erase(comment);
 
+		line = trim(line);
+		if (line.empty())
+			continue; // jump next iteration
+			
 		// if was server is in server block-> state == SERVER
 		if (line == "server")
 		{
@@ -106,31 +110,47 @@ std::vector<struct Config> parseConfig(const char* conf)
 		}
 			
 		std::string key, value;
-        ss >> key >> value;
+		ss >> key;
+		std::string token;
 		// remove ; from end
-        value = removeSemicolon(value);
-
+		
 		if (state == SERVER)
         {
 			// in server state has first line and rest
             if (key == "listen")
             {
-                size_t pos = value.find(':');
+				ss >> token; // get the line with :
+				if (token.find(";") != std::string::npos)
+					token = removeSemicolon(token);
+                size_t pos = token.find(':');
                 if (pos == std::string::npos)
                     throw std::runtime_error("Invalid listen directive");
 
-                currentServer.host = value.substr(0, pos);
-				std::cout << "port: " << value.substr(pos + 1) << std::endl;
-                currentServer.port = value.substr(pos + 1);
+                currentServer.host = token.substr(0, pos);
+				std::cout << "detect server with port: " << token.substr(pos + 1) << std::endl;
+                currentServer.port = token.substr(pos + 1);
             }
             else
             {
-                currentServer.directives[key] = value;
+				while (ss >> token)
+				{
+					if (token.find(";") != std::string::npos)
+						token = removeSemicolon(token);
+					currentServer.directives[key].push_back(token);;
+				}
+				
             }
         }
         else if (state == LOCATOIN)
         {
-            currentLocation.directive[key] = value;
+			// remove ; from end
+			while (ss >> token)
+			{
+				if (token.find(";") != std::string::npos)
+					token = removeSemicolon(token);
+				currentLocation.directive[key].push_back(token);
+			}
+			
         }
 	}
 	return servers;

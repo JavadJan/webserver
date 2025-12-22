@@ -27,9 +27,14 @@ class ResponseHandler
 
 	// method controller
 	void controller(const HttpRequest &req,	struct Config servers);
-	void handelGet();
+	void handleGet();
 	void handlePost();
 	void handleDelete();
+
+	class ResException: public std::exception{
+		public:
+		const char* what() const throw();
+	};
 };
 
 #endif

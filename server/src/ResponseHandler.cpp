@@ -26,70 +26,67 @@ ResponseHandler &ResponseHandler::operator=(const ResponseHandler &other)
 //------------------------------#
 //			methods, main		#
 //------------------------------#
-static struct Location matchLocation(struct Config server,std::string path)
+
+static Location matchLocation(const Config& server, const std::string& path)
 {
-	struct Location location;
-	size_t i = 0;
-	size_t longest = 0;
-	
-	while (i < server.locations.size())
-	{
-		std::string p = server.locations[i].path;
-		if (path.find(p) == 0 && p.size() > longest) // this longest say the largsest match
-		{
-			location = server.locations[i];
-			longest = p.size();
-		}
-		
-		i++;
-	}
-	return location;
+    Location best;
+    size_t longest = 0;
+
+    for (size_t i = 0; i < server.locations.size(); i++)
+    {
+        const std::string& p = server.locations[i].path;
+        if (path.find(p) == 0 && p.size() > longest)
+        {
+            best = server.locations[i];
+            longest = p.size();
+        }
+    }
+    return best;
 }
 
-//static struct Config matchServer(const HttpRequest &req, std::vector<struct Config> servers)
-//{
-//	struct Config server;
-//	size_t i = 0;
-//	while (i < servers.size())
-//	{
-//		if (servers[i].port == req.getPortServer())
-//			server =  servers[i];
-//		i++;
-//	}
-//	return server;	
-//}
 
-static bool methodAllowed(struct Location location, std::string method)
-{
-	size_t found = location.directive["allow_methods"].find(method);
-	if (found != std::string::npos)
-		return true;
-	
-	return false;
-};
 
-static std::string resolvePath(const std::string &req_path, struct Location location)
+static bool find_method(const std::vector<std::string>& methods,
+                        const std::string& method)
 {
-	// root is in config
-    std::string root = location.directive["root"];
-	std::cout << "root: " << root << std::endl;
-	
-	if (req_path.find(location.path) == 0)
-	{
-		root += "/";
-		root += req_path.substr(location.path.length()); // ./tmp/www + /form
+    return std::find(methods.begin(), methods.end(), method) != methods.end();
+}
+
+static bool methodAllowed(const Location& location, const std::string& method)
+{
+    std::map<std::string, std::vector<std::string> >::const_iterator it =
+        location.directive.find("allow_methods");
+
+    if (it == location.directive.end())
+        return true; // no restriction = allow all
+
+    return find_method(it->second, method);
+}
+
+static std::string resolvePath(const std::string &req_path, const Location& location)
+{
+    std::map<std::string, std::vector<std::string> >::const_iterator it =
+        location.directive.find("root");
+
+    if (it == location.directive.end() || it->second.empty())
+        return ""; // let caller handle 404 / 500
+
+    std::string root = it->second[0];
+
+    if (req_path.find(location.path) == 0)
+    {
+        root += "/";
+        root += req_path.substr(location.path.length());
 		std::cout << "root: " << root << std::endl;
-		
-	}
+    }
     else
-	{
-		root += req_path;
+    {
+        root += req_path;
 		std::cout << "root: " << root << std::endl;
-
-	}
-
+    }
     return root;
 }
+
 
 
 /* methods */
@@ -104,6 +101,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	//	std::cout << "send: 404\n";
 	//}
 	
+
 	std::cout << "what is request: " << req.getBody() << std::endl;
 	std::cout << "what is req path: " << req.getPath() << std::endl;
 	
@@ -122,10 +120,16 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	}
 	else // so if methods allowd 
 	{
-		full_path = resolvePath(req.getPath(), location); // 
-		std::cout << "allowed method: " << location.directive["allow_methods"] << std::endl;
+		//full_path = resolvePath(req.getPath(), location); // 
+		full_path = resolvePath(req.getPath(), location);
+		if (full_path.empty())
+		{
+			res.setStatus(404);
+			return;
+		}
+		std::cout << "allowed method: " << location.directive["allow_methods"].at(0) << std::endl;
 		if (req.getMethod() == "GET")
-			handelGet();
+			handleGet();
 		else if (req.getMethod() == "POST")
 			handlePost();
 		else if (req.getMethod() == "DELETE")
@@ -148,7 +152,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 
 
 // 
-void ResponseHandler::handelGet()
+void ResponseHandler::handleGet()
 {
 	struct stat st;
 	if (stat(full_path.c_str(), &st) == -1) // if not found

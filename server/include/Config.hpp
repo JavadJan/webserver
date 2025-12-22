@@ -30,7 +30,7 @@
 struct	Location
 {
 	std::string path;
-	std::map<std::string, std::string> directive;
+	std::map<std::string, std::vector<std::string> > directive;
 	bool empty;
 	Location();
 };
@@ -39,7 +39,7 @@ struct	Config
 {
 	std::string port;
 	std::string host;
-	std::map<std::string, std::string> directives;
+	std::map<std::string, std::vector<std::string> > directives;
 	std::vector<struct	Location> locations;
 	bool empty;
 	Config();
