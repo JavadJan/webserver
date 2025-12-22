@@ -8,6 +8,7 @@
 #include <cstdlib>      // for std::exit
 
 // POSIX headers (no C++ equivalents)
+#include <fcntl.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/socket.h>

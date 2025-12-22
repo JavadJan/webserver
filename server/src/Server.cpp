@@ -7,6 +7,7 @@
 //--------------------------------------#
 //		create server object			#
 //--------------------------------------#
+
 Server::Server(std::vector<struct Config> serversConfig)
 :
 //_port(serversConfig[0].port),
@@ -41,6 +42,22 @@ server_fd(-1)
 	
 }
 
+static void set_nonblocking(int fd)
+{
+	// here the ftcntl() will return O_RDONLY, _WRONLY or O_NONBLOCK
+	// F_GETFL: Get File Status Flags
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        throw std::runtime_error("fcntl F_GETFL failed");
+
+	// if allready set as NONBLOCK then the flag will not set again
+	// keep every things exist and add O_NONBLOCK; append mode
+	// stand fot File CoNTroL
+	//F_GETFL: Get File Status Flags
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+        throw std::runtime_error("fcntl F_SETFL failed");
+}
+
 //--------------------------------------#
 //		define socket, bind, listen		#
 //--------------------------------------#
@@ -59,6 +76,7 @@ int Server::create_socket_bind()
 			std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
 			return (-1);
 		}
+		set_nonblocking(server_fd);
 		// Bind socket to address and port
 		status = bind(server_fd,  res[i]->ai_addr, res[i]->ai_addrlen);
 		if (status != 0)
@@ -73,7 +91,7 @@ int Server::create_socket_bind()
 			return (3);
 		}
 		
-	
+		// list of socket
 		pollfd serverPoll;
 		serverPoll.fd = server_fd; // add server socket to pollfd
 		serverPoll.events = POLLIN; // it won't block recv();
@@ -150,19 +168,27 @@ const char* Server::ExceptionServer::what() const throw(){
 void	Server::accept_new_connection(int listen_fd)
 {
 	// in a loop accept server fd? 
-	int new_fd = accept(listen_fd, NULL, NULL);
-	if (new_fd == -1)
+	while (true)
 	{
-		std::cerr << "[Server] Accept error: \n" << strerror(errno);
-		return ;
-	}
-
-	add_to_poll_fds(new_fd); // no need to pass this fd
-	std::cout << "[Server] Accepted new connection on client socket" <<  new_fd << std::endl;
-	http_req[new_fd].setServerConfig(&serverfd_config[listen_fd]);
-	http_req.insert(std::make_pair(new_fd, HttpRequest()));
+		int new_fd = accept(listen_fd, NULL, NULL);
+		if (new_fd == -1)
+		{
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				return; // normal
+			std::cerr << "[Server] Accept error: \n" << strerror(errno);
+			return;
+		}
 	
-	this->http_req[new_fd].clearBuffer();
+		set_nonblocking(new_fd);
+	
+		add_to_poll_fds(new_fd); // no need to pass this fd
+		std::cout << "[Server] Accepted new connection on client socket" <<  new_fd << std::endl;
+		http_req.insert(std::make_pair(new_fd, HttpRequest()));
+		http_req[new_fd].setServerConfig(&serverfd_config[listen_fd]);
+		
+		//this->http_req[new_fd].clearBuffer();
+	}
+	
 }
 
 void	Server::read_data_from_socket(int i)
@@ -235,13 +261,16 @@ void	Server::read_data_from_socket(int i)
 	}
 	else
 	{
+		// if resive return -1 and set errno as EAGAIN, there is nothing to read
+		//if (errno == EAGAIN || errno == EWOULDBLOCK)
+       	//	return; // try later
 		// && http_req[sender_fd].getBuffer().empty()
 		if (bytes_read == 0)
 		{
 			close(sender_fd); // Close socket
 			std::cout << "[" << sender_fd << "] Client socket closed connection.\n";
 		}
-		else
+		else if (errno == EAGAIN || errno == EWOULDBLOCK)
 			std::cout << "[Server] Recv: "<< strerror(errno);
 		
 		del_from_poll_fds(i); // 
