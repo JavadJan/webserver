@@ -16,6 +16,7 @@ class ResponseHandler
 {
   private:
 	Response res;
+	
 	std::string full_path; // helper to track macth: server|location|path|mathod
   public:
 	ResponseHandler(); // response to this request, this req has the socket fd
@@ -25,6 +26,8 @@ class ResponseHandler
 	// getter
 	Response getResponse();
 
+	void setSendBuffer(std::string str);
+	void setOffset(size_t offset);
 	// method controller
 	void controller(const HttpRequest &req,	struct Config servers);
 	void handleGet();

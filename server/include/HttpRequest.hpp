@@ -17,7 +17,9 @@ struct Config;
 class HttpRequest
 {
 	public:
-		enum STATE { REQ_LINE, HEADER, BODY, DONE, ERROR };
+		std::string sendBuffer;
+		size_t sendOffset;
+		enum STATE { REQ_LINE, HEADER, BODY, DONE, ERROR, SENDING };
 		HttpRequest();
 		~HttpRequest();
 		HttpRequest(const HttpRequest& other);

@@ -62,6 +62,9 @@ class Server{
 		void add_to_poll_fds(int new_fd);
 		void del_from_poll_fds(int i);
 		void read_data_from_socket(int i); // parsing heppen here
+		void write_data_to_socket(int i);
+		void set_poll_events(int fd, short events);
+
 		int create_socket_bind();
 
 		/* state machine function */

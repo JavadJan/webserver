@@ -109,14 +109,6 @@ void Server::run()
 	create_socket_bind();
 	int status;
 
-	//poll_fds.clear();
-
-    //pollfd serverPoll;
-    //serverPoll.fd = server_fd; // add server socket to pollfd
-    //serverPoll.events = POLLIN; // it won't block recv();
-    //serverPoll.revents = 0;
-
-    //poll_fds.push_back(serverPoll);
 	while (1)
 	{ // Main loop
 		// Poll sockets to see if they are ready (2 second timeout)
@@ -140,21 +132,25 @@ void Server::run()
 		for (size_t i = 0; i < poll_fds.size(); i++)
 		{
 			// if there was not client socket
-			if (!(poll_fds[i].revents & POLLIN)) // POLLOUT
-				continue;
-
-			// The socket is ready for reading!
-			//if (poll_fds[i].fd == server_fd)
-			if (serverfd_config.count(poll_fds[i].fd))
+			if ((poll_fds[i].revents & POLLIN)) // POLLOUT
 			{
-				//a new client is trying to connect
-				// Socket is our listening server socket
-				accept_new_connection(poll_fds[i].fd);
+				// The socket is ready for reading!
+				//if (poll_fds[i].fd == server_fd)
+				if (serverfd_config.count(poll_fds[i].fd))
+				{
+					//a new client is trying to connect
+					// Socket is our listening server socket
+					accept_new_connection(poll_fds[i].fd);
+				}
+				else
+				{
+					// Socket is a client socket, read it
+					read_data_from_socket(i);
+				}
 			}
-			else
+			else if (poll_fds[i].revents & POLLOUT)
 			{
-				// Socket is a client socket, read it
-				read_data_from_socket(i);
+				write_data_to_socket(i);
 			}
 		}
 	}
@@ -211,11 +207,7 @@ void	Server::read_data_from_socket(int i)
 		// Relays the received message to all connected sockets
 		// but not to the server socket or the sender socket
 		std::cout << "\n[" << sender_fd << "] Got message: start ----->\n" << chunk << "\n<----------end request\n\n";
-		//recvBuffer[sender_fd].append(chunk, bytes_read); // append to cleint_fd
-		http_req[sender_fd].appendBuffer(chunk, bytes_read);
-
-		//std::cout << "send to fsm: " << http_req[sender_fd].getBuffer() << "chunk: " << chunk << std::endl;
-		
+		http_req[sender_fd].appendBuffer(chunk, bytes_read);		
 	
 		fsm(sender_fd); // 
 		http_req[sender_fd].setClientSocket(sender_fd); // needs this socket to send response
@@ -224,8 +216,9 @@ void	Server::read_data_from_socket(int i)
 		//std::cout << "state: " << clientState[sender_fd] << std::endl;
 		if (http_req[sender_fd].getState() == HttpRequest::DONE)
 		{
-			//ParseFSM(sender_fd); // use from http_req.buffer -> fille req.method
-			
+			// when recv() finished enabple POLLOUT to send()
+			set_poll_events(sender_fd, POLLOUT); 
+
 			std::cout << "\n\nHTTP REQ: |" << http_req[sender_fd] 
 				<< "|\n\nCreate ResponseHandeler and controller "<< std::endl;
 			
@@ -237,26 +230,32 @@ void	Server::read_data_from_socket(int i)
 			std::string response = res.getResponse().toString(); // make foramt http res to string
 			
 			std::cout << "response: " << response << std::endl;
-			/* send basic response */
-			if (send(sender_fd, response.c_str(), response.size(), 0) == -1)
-				std::cout << strerror(errno);
-			
-			http_req[sender_fd].clearBuffer();
-			http_req[sender_fd].setState(HttpRequest::REQ_LINE);
+			http_req[sender_fd].sendBuffer = response ; 
+			http_req[sender_fd].sendOffset = 0;
+			http_req[sender_fd].setState(HttpRequest::SENDING);
 
-			// close connection to reset for the next request
-			// by defauld connection close is false, in fsm will change if exist
-			if (http_req[sender_fd].getHeader()["Connection"] == "close")
-			{
-				close(sender_fd);                 // TCP layer
-				del_from_poll_fds(i);             // event layer
-				http_req.erase(sender_fd);        // HTTP state cleanup
-				return;
-			}
-			else
-			{
-				http_req[sender_fd].resetForNextRequest(); // prepare for next request
-			}
+
+
+			///* send basic response */
+			//if (send(sender_fd, response.c_str(), response.size(), 0) == -1)
+			//	std::cout << strerror(errno);
+			
+			//http_req[sender_fd].clearBuffer();
+			//http_req[sender_fd].setState(HttpRequest::REQ_LINE);
+
+			//// close connection to reset for the next request
+			//// by defauld connection close is false, in fsm will change if exist
+			//if (http_req[sender_fd].getHeader()["Connection"] == "close")
+			//{
+			//	close(sender_fd);                 // TCP layer
+			//	del_from_poll_fds(i);             // event layer
+			//	http_req.erase(sender_fd);        // HTTP state cleanup
+			//	return;
+			//}
+			//else
+			//{
+			//	http_req[sender_fd].resetForNextRequest(); // prepare for next request
+			//}
 		}
 	}
 	else
@@ -268,6 +267,7 @@ void	Server::read_data_from_socket(int i)
 		if (bytes_read == 0)
 		{
 			close(sender_fd); // Close socket
+			http_req.erase(sender_fd);
 			std::cout << "[" << sender_fd << "] Client socket closed connection.\n";
 		}
 		else if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -276,6 +276,56 @@ void	Server::read_data_from_socket(int i)
 		del_from_poll_fds(i); // 
 	}
 }
+
+void Server::write_data_to_socket(int i)
+{
+
+	int fd = poll_fds[i].fd;
+    HttpRequest &req = http_req[fd];
+
+    // Try to send the remaining part of the buffer
+    ssize_t n = send(fd, req.sendBuffer.data() + req.sendOffset, 
+                     req.sendBuffer.size() - req.sendOffset, 0);
+
+    if (n > 0) 
+	{
+        req.sendOffset += n; // update offset
+    }
+	else if (n == -1)
+	{
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return;
+        // Handle actual error (close connection)
+    	return;
+    }
+
+    // Is the whole buffer sent?
+    if (req.sendOffset >= req.sendBuffer.size()) 
+	{
+        // FINISHED SENDING
+        req.sendBuffer.clear();
+        req.sendOffset = 0;
+
+        // Disable POLLOUT so we don't keep getting triggered
+        set_poll_events(fd, POLLIN); 
+
+        if (req.getHeader()["Connection"] == "close")
+		{
+            // Cleanup and close
+			close(fd);                 // TCP layer
+			del_from_poll_fds(i);             // event layer
+			http_req.erase(fd);        // HTTP state cleanup
+			req.setState(HttpRequest::REQ_LINE);
+			return;
+        }
+		else
+		{
+            req.resetForNextRequest();
+            req.setState(HttpRequest::REQ_LINE);
+        }
+    }
+}
+
 
 void Server::add_to_poll_fds(int cleint_fd)
 {
@@ -292,3 +342,16 @@ void Server::del_from_poll_fds(int i)
     poll_fds[i] = poll_fds.back();
     poll_fds.pop_back();
 }
+
+void Server::set_poll_events(int fd, short events)
+{
+    for (size_t i = 0; i < poll_fds.size(); i++)
+    {
+        if (poll_fds[i].fd == fd)
+        {
+            poll_fds[i].events = events;
+            return;
+        }
+    }
+}
+
