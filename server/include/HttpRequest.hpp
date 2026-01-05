@@ -75,6 +75,7 @@ class HttpRequest
 
 		struct Config* server;
 		bool connection_close;
+		int statusCode; // trace the valid request
 };
 
 

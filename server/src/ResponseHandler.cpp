@@ -58,8 +58,15 @@ static bool methodAllowed(const Location& location, const std::string& method)
         location.directive.find("allow_methods");
 
     if (it == location.directive.end())
+	{
         return true; // no restriction = allow all
-
+	}
+	std::cout << "methods : " ;
+	for (size_t i = 0; i < it->second.size(); i++)
+	{
+		std::cout << it->second[i] << " " ;
+	}
+	std::cout << std::endl;
     return find_method(it->second, method);
 }
 
@@ -127,9 +134,15 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 			res.setStatus(404);
 			return;
 		}
+
+		//router.get("/", (req, res)=>{
+		//	res.send("hello")
+		//})
 		std::cout << "allowed method: " << location.directive["allow_methods"].at(0) << std::endl;
 		if (req.getMethod() == "GET")
+		{
 			handleGet();
+		}
 		else if (req.getMethod() == "POST")
 			handlePost();
 		else if (req.getMethod() == "DELETE")
@@ -220,5 +233,7 @@ stat() is like asking the filesystem:
 	How big is it?
 	When was it modified?
 	Do I have permission to read it?”
+
+
 
 */

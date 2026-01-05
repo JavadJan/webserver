@@ -32,7 +32,7 @@ class Server{
 		/* data for make connection, ip, port, sockets */
 		std::string _port;
 
-		// for every port get run a server
+		// for every socket map a server
 		std::map<int, Config> serverfd_config;
 
 		// replace _port -> std::map<int, int> serverPort // {server : port}to run multiple server

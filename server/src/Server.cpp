@@ -53,7 +53,7 @@ static void set_nonblocking(int fd)
 	// if allready set as NONBLOCK then the flag will not set again
 	// keep every things exist and add O_NONBLOCK; append mode
 	// stand fot File CoNTroL
-	//F_GETFL: Get File Status Flags
+	//F_SETFL: Set File Status Flags
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
         throw std::runtime_error("fcntl F_SETFL failed");
 }
@@ -132,7 +132,7 @@ void Server::run()
 		for (size_t i = 0; i < poll_fds.size(); i++)
 		{
 			// if there was not client socket
-			if ((poll_fds[i].revents & POLLIN)) // POLLOUT
+			if ((poll_fds[i].revents & POLLIN)) // POLLIN, readiness
 			{
 				// The socket is ready for reading!
 				//if (poll_fds[i].fd == server_fd)
@@ -209,7 +209,7 @@ void	Server::read_data_from_socket(int i)
 		std::cout << "\n[" << sender_fd << "] Got message: start ----->\n" << chunk << "\n<----------end request\n\n";
 		http_req[sender_fd].appendBuffer(chunk, bytes_read);		
 	
-		fsm(sender_fd); // 
+		fsm(sender_fd); // in fsm get req with http_req[sender_fd]
 		http_req[sender_fd].setClientSocket(sender_fd); // needs this socket to send response
 		http_req[sender_fd].setPortServer(_port); //?????// there current server with[PORT] responses
 
@@ -230,6 +230,7 @@ void	Server::read_data_from_socket(int i)
 			std::string response = res.getResponse().toString(); // make foramt http res to string
 			
 			std::cout << "response: " << response << std::endl;
+			// fill the http_req for the clint == sender_fd, in write_data_to_fd() will send
 			http_req[sender_fd].sendBuffer = response ; 
 			http_req[sender_fd].sendOffset = 0;
 			http_req[sender_fd].setState(HttpRequest::SENDING);
@@ -293,6 +294,7 @@ void Server::write_data_to_socket(int i)
     }
 	else if (n == -1)
 	{
+		// not readiness
         if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return;
         // Handle actual error (close connection)
@@ -302,7 +304,7 @@ void Server::write_data_to_socket(int i)
     // Is the whole buffer sent?
     if (req.sendOffset >= req.sendBuffer.size()) 
 	{
-        // FINISHED SENDING
+        // FINISHED SENDING and clear the buffer
         req.sendBuffer.clear();
         req.sendOffset = 0;
 
