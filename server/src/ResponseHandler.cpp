@@ -95,20 +95,24 @@ static std::string resolvePath(const std::string &req_path, const Location& loca
 }
 
 
+bool ResponseHandler::path_exist(std::string full_path)
+{
+	struct stat st;
+	if (stat(full_path.c_str(), &st) == -1) // if not found
+	{
+		res.setStatus(404);
+		res.setBody("Not Found");
+		return false;
+	}
+	return true;
+}
+
 
 /* methods */
 /* after fsm parsed the req,
 	that signel http_req pass here and buil respons for it */
 void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 {
-	//struct Config server = matchServer(req, servers);
-	//if (server.empty)
-	//{
-	//	res.setStatus(404);
-	//	std::cout << "send: 404\n";
-	//}
-	
-
 	std::cout << "what is request: " << req.getBody() << std::endl;
 	std::cout << "what is req path: " << req.getPath() << std::endl;
 	
@@ -120,40 +124,42 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		std::cout << "send: 404\n";
 	}
 
+	
+		//full_path = resolvePath(req.getPath(), location); // 
+	full_path = resolvePath(req.getPath(), location);
+	std::cout << "full path: " << full_path << std::endl;
+	if (!path_exist(full_path)) // ./tmp/www/form does not exist
+	{
+		res.setStatus(404);
+		return;
+	}
+
 	if (!methodAllowed(location, req.getMethod()))
 	{
 		res.setStatus(405);
 		std::cout << "send:	respond 405 " <<std::endl;
+		return;
 	}
-	else // so if methods allowd 
-	{
-		//full_path = resolvePath(req.getPath(), location); // 
-		full_path = resolvePath(req.getPath(), location);
-		if (full_path.empty())
-		{
-			res.setStatus(404);
-			return;
-		}
-
 		//router.get("/", (req, res)=>{
 		//	res.send("hello")
 		//})
-		std::cout << "allowed method: " << location.directive["allow_methods"].at(0) << std::endl;
-		if (req.getMethod() == "GET")
-		{
-			handleGet();
-		}
-		else if (req.getMethod() == "POST")
-			handlePost();
-		else if (req.getMethod() == "DELETE")
-			handleDelete();
-		else 
-		{
-			res.setStatus(501);
-			std::cout << "respond 501\n";
-	
-		}	
+		//std::cout << "allowed method: " << location.directive["allow_methods"].at(0) << std::endl;
+	if (req.getMethod() == "GET")
+	{
+		handleGet();
 	}
+	else if (req.getMethod() == "POST")
+		handlePost();
+	else if (req.getMethod() == "DELETE")
+		handleDelete();
+	else 
+	{
+		res.setStatus(501);
+		std::cout << "respond 501\n";
+
+	}	
+
+	
 
 	//adjust path
 
@@ -218,12 +224,17 @@ void ResponseHandler::handlePost()
 // 			getter			#
 //--------------------------#
 
-Response ResponseHandler::getResponse()
+Response& ResponseHandler::getResponse()
 {
 	return res;
 }
 
+void ResponseHandler::ErrorPage(const HttpRequest &req, struct Config servers)
+{
+	(void)req;
+	(void)servers;
 
+}
 /* 
 
 stat() is like asking the filesystem:

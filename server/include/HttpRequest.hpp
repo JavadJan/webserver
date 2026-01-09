@@ -39,6 +39,7 @@ class HttpRequest
 		std::string getPortServer() const;
 		bool getConnectionState();
 		Config * getServerConfig();
+		int	getStatusCode() const;
 		/* stetter */
 		void setMethod(const std::string& _method);
 		void setPath(const std::string& path);
@@ -50,7 +51,7 @@ class HttpRequest
 		void setClientSocket(int fd);
 		void setPortServer(std::string port);
 		void setServerConfig(Config *server);
-
+		void setStatusCode(int status_code); // trace the status code for req valid
 		void clearBuffer();
 		
 		void setState(enum STATE state);

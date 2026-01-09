@@ -19,7 +19,7 @@ Response &Response::operator=(const Response &other)
 	{
 		this->status = other.status;
 		this->body = other.body;
-		this->header = header;
+		this->header = other.header;
 	}
 	return *this;
 }
@@ -37,6 +37,7 @@ std::string Response::reasonPhrase(int code)
         case 403: return "Forbidden";
         case 405: return "Method Not Allowed";
         case 501: return "Not Implemented";
+		case 400: return "Bad Request!";
         default:  return "Error";
     }
 }
@@ -54,11 +55,15 @@ void Response::setHeader(std::map<std::string, std::string> header)
 	this->header = header;
 }
 
+int Response::getStatus() const {
+	return this->status;
+}
+
 std::string Response::toString()
 {
     std::stringstream ss;
 
-    ss << "HTTP/1.1 " << status << " " << reasonPhrase(status) << "\r\n";
+    ss << "HTTP/1.1 " << getStatus() << " " << reasonPhrase(getStatus()) << "\r\n";
     ss << "Content-Length: " << body.size() << "\r\n";
     ss << "Content-Type: text/html\r\n";
     ss << "\r\n";

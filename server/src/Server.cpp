@@ -71,11 +71,22 @@ int Server::create_socket_bind()
 	{
 		/* code */
 		server_fd = socket(res[i]->ai_family, res[i]->ai_socktype, res[i]->ai_protocol);
-		if (server_fd == -1)
+		if (server_fd < 0)
 		{
 			std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
-			return (-1);
+			continue;
+			//return (-1);
 		}
+		/*Bind Error: Address already in use occurs because when a socket is closed,
+			it stays in a kernel state called TIME_WAIT for several minutes. 
+			setsockopt() tell the kernel reuse the port
+		*/
+		int opt = 1;
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+            std::cerr << "[Server] setsockopt Error: " << strerror(errno) << std::endl;
+            close(server_fd);
+            continue;
+        }
 		set_nonblocking(server_fd);
 		// Bind socket to address and port
 		status = bind(server_fd,  res[i]->ai_addr, res[i]->ai_addrlen);
@@ -84,6 +95,7 @@ int Server::create_socket_bind()
 			std::cout << "[Server] Bind Error: " << strerror(errno) << std::endl;
 			return (-1);
 		}
+		//if (status == )
 		status = listen(server_fd, 10);
 		if (status != 0)
 		{
@@ -98,9 +110,10 @@ int Server::create_socket_bind()
 		serverPoll.revents = 0;
 	
 		poll_fds.push_back(serverPoll);
-		serverfd_config[server_fd] = servers[i];
+		serverfd_config[server_fd] = servers[i]; // for every socket I created a server
 	}
-	
+	if (poll_fds.empty())
+        return -1;
 	return 0;
 }
 
@@ -167,8 +180,9 @@ void	Server::accept_new_connection(int listen_fd)
 	while (true)
 	{
 		int new_fd = accept(listen_fd, NULL, NULL);
-		if (new_fd == -1)
+		if (new_fd == -1) // under rule check the return value and then use errno
 		{
+			
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 				return; // normal
 			std::cerr << "[Server] Accept error: \n" << strerror(errno);
@@ -221,12 +235,14 @@ void	Server::read_data_from_socket(int i)
 
 			std::cout << "\n\nHTTP REQ: |" << http_req[sender_fd] 
 				<< "|\n\nCreate ResponseHandeler and controller "<< std::endl;
-			
+			// req is valid->status == 200
+			//http_req[sender_fd].setStatusCode(200);
 			/* create an object from response handler */
 			ResponseHandler res;
 			//req, servers []
 			//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
 			res.controller(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
+			//res.getResponse().setStatus(200); // set status code
 			std::string response = res.getResponse().toString(); // make foramt http res to string
 			
 			std::cout << "response: " << response << std::endl;
@@ -234,29 +250,27 @@ void	Server::read_data_from_socket(int i)
 			http_req[sender_fd].sendBuffer = response ; 
 			http_req[sender_fd].sendOffset = 0;
 			http_req[sender_fd].setState(HttpRequest::SENDING);
+		}
+		else if (http_req[sender_fd].getState() == HttpRequest::ERROR)
+		{
+			std::cout << "sending an error page\n";
+			set_poll_events(sender_fd, POLLOUT); 
+			ResponseHandler resError;
 
-
-
-			///* send basic response */
-			//if (send(sender_fd, response.c_str(), response.size(), 0) == -1)
-			//	std::cout << strerror(errno);
+			//req, servers []
+			//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
+			//resError.ErrorPage(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
+			resError.getResponse().setStatus(http_req[sender_fd].getStatusCode()); // set status code for error
+			std::cout << "status code: " << "|" <<  http_req[sender_fd].getStatusCode() << std::endl;
+			std::cout << "status code: " << "|" <<  resError.getResponse().getStatus() << std::endl;
 			
-			//http_req[sender_fd].clearBuffer();
-			//http_req[sender_fd].setState(HttpRequest::REQ_LINE);
-
-			//// close connection to reset for the next request
-			//// by defauld connection close is false, in fsm will change if exist
-			//if (http_req[sender_fd].getHeader()["Connection"] == "close")
-			//{
-			//	close(sender_fd);                 // TCP layer
-			//	del_from_poll_fds(i);             // event layer
-			//	http_req.erase(sender_fd);        // HTTP state cleanup
-			//	return;
-			//}
-			//else
-			//{
-			//	http_req[sender_fd].resetForNextRequest(); // prepare for next request
-			//}
+			resError.getResponse().setBody(""); // set status code for error
+			std::string response = resError.getResponse().toString(); // make foramt http res to string
+			std::cout << "response: " << "|" << response  << std::endl;
+			// fill the http_req for the clint == sender_fd, in write_data_to_fd() will send
+			http_req[sender_fd].sendBuffer = response ; 
+			http_req[sender_fd].sendOffset = 0;
+			http_req[sender_fd].setState(HttpRequest::SENDING);
 		}
 	}
 	else

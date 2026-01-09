@@ -35,6 +35,55 @@ std::string normalPath(std::string path)
 	}
 	return normalized;
 }
+//--------------------------#
+//			validation		#
+//--------------------------#
+bool Server::validateRequestLine(int fd)
+{
+	// methos os case-sensitive?
+	std::cout << "method: " << http_req[fd].getMethod() << std::endl;
+    if (http_req[fd].getMethod() != "GET" && http_req[fd].getMethod() != "POST" && http_req[fd].getMethod() != "DELETE")
+	{
+		http_req[fd].setStatusCode(400); // bad request
+		std::cout << "assignied to 400\n";
+		//http_req[fd].setState(HttpRequest::ERROR);
+        return false;
+	}
+
+    if (http_req[fd].getProtocol() != "HTTP/1.1")
+	{
+		//http_req[fd].setState(HttpRequest::ERROR);
+		http_req[fd].setStatusCode(505);
+        return false;
+	}
+
+    if (http_req[fd].getPath().empty() || http_req[fd].getPath()[0] != '/')
+	{
+		//http_req[fd].setState(HttpRequest::ERROR);
+		http_req[fd].setStatusCode(400);
+        return false;
+	}
+
+    return true;
+}
+//bool Server::validateHeaders(int fd)
+//{
+
+//    //if (req.getProtocol() == "HTTP/1.1"
+//    //    && !req.hasHeader("Host"))
+//    //    return setError(fd, 400);
+
+//    //if (req.hasHeader("Content-Length")
+//    //    && !isValidContentLength(req))
+//    //    return setError(fd, 400);
+
+//    return true;
+//}
+//--------------------------#
+//			validation		#
+//--------------------------#
+
+
 
 void Server::parseRequestLine(std::string buf, int sock_fd)
 {
@@ -44,16 +93,19 @@ void Server::parseRequestLine(std::string buf, int sock_fd)
     rl >> method >> path >> protocol;
 	path = normalPath(path);
 	std::cout << "path normal here: " << path << std::endl;
-    http_req[sock_fd].setMethod(method);
-    http_req[sock_fd].setPath(path);
-    http_req[sock_fd].setProtocol(protocol);
+    http_req[sock_fd].setMethod(method); // not valid 405
 
-	size_t pos = buf.find("\r\n");
-	if (pos == std::string::npos)
-		pos = buf.find("\n");
+    http_req[sock_fd].setPath(path); // error 400
+	
+    http_req[sock_fd].setProtocol(protocol); // error 505
 
-	//size_t newline_len = (buf[pos] == '\r') ? 2 : 1;
-    //consume(0, pos+ newline_len, sock_fd); // remove every state from prev
+	//std::string extra;
+	//if (rl >> extra)
+	//{
+	//	http_req[sock_fd].setState(HttpRequest::ERROR);
+	//	http_req[sock_fd].setStatusCode(400);
+	//	return ;
+	//}
 }
 
 void Server::parseHeader(std::string buf, int sock_fd)
@@ -131,13 +183,23 @@ void Server::fsm(int sock_fd)
 			if (pos == std::string::npos)
 				pos = buf.find("\n");
 
-			if (pos != std::string::npos) {
+			if (pos != std::string::npos)
+			{
+				// extract each portion of http request and set them
 				std::string req_line = buf.substr(0, pos);
 				parseRequestLine(req_line, sock_fd);
 
 				size_t newline_len = (buf[pos] == '\r') ? 2 : 1;
 				consume(0, pos + newline_len, sock_fd);
 
+				// after fill validation the http request line
+				if (!validateRequestLine(sock_fd))
+				{
+					// if find error stop the program to continue
+					http_req[sock_fd].setState(HttpRequest::ERROR);
+					std::cout << "transit to error state\n";
+					return ; 
+				}
 				http_req[sock_fd].setState(HttpRequest::HEADER);
 				std::cout << "[REQ_LINE STATE] has completed, parse the req_line then go header\n\n";
 				continue;
@@ -202,8 +264,10 @@ void Server::fsm(int sock_fd)
 		}
 		case HttpRequest::ERROR:
 		{
-	
-			break;
+			// transition goes to the sending, but send an error_page
+			//http_req[sock_fd].setState(HttpRequest::SENDING);
+			//
+			return;
 		}
 		default:
 			break;
@@ -211,74 +275,3 @@ void Server::fsm(int sock_fd)
 	}
 	
 }
-
-//void Server::ParseFSM(int sock_fd)
-//{
-//    const std::string& buf = http_req[sock_fd].getBuffer();
-
-//    // 1) Parse request line
-//    size_t pos_reqline_end = buf.find("\r\n");
-//    std::string reqline = buf.substr(0, pos_reqline_end);
-
-//    std::istringstream rl(reqline);
-//    std::string method, path, protocol;
-//    rl >> method >> path >> protocol;
-
-//    http_req[sock_fd].setMethod(method);
-//    http_req[sock_fd].setPath(path);
-//    http_req[sock_fd].setProtocol(protocol);
-
-//    // 2) Parse headers
-//    size_t header_start = pos_reqline_end + 2;                // skip "\r\n"
-//    size_t headers_end = buf.find("\r\n\r\n");                // end of headers block
-//    size_t headers_len = headers_end - header_start;
-
-//    std::string header_content = buf.substr(header_start, headers_len);
-//	std::istringstream header_stream(header_content);
-//	std::string line;
-
-//	while (std::getline(header_stream, line)) 
-//	{
-//		if (line.empty())
-//			continue;
-
-//		// Remove trailing \r 
-//		if (!line.empty() && line[line.size() - 1] == '\r')
-//			line.erase(line.size() - 1);
-
-//		size_t colon = line.find(':');
-//		if (colon == std::string::npos)
-//			continue;
-
-//		std::string key = line.substr(0, colon);
-//		std::string value = line.substr(colon + 1);
-
-//		// trim leading space
-//		while (!value.empty() && value[0] == ' ')
-//			value.erase(0, 1);
-
-//		http_req[sock_fd].setHeader(key, value);
-//	}
-
-
-//    // 3) Parse body
-//    size_t body_start = headers_end + 4;          // skip "\r\n\r\n"
-//    std::string body = buf.substr(body_start);
-
-//    http_req[sock_fd].setBody(body);
-
-//    //std::cout << "Parsed method:   " << method << std::endl;
-//    //std::cout << "Parsed path:     " << path << std::endl;
-//    //std::cout << "Parsed protocol: " << protocol << std::endl;
-
-//    //const std::map<std::string, std::string>& headers = http_req[sock_fd].getHeader();
-
-//	//for (std::map<std::string, std::string>::const_iterator it = headers.begin();
-//	//	it != headers.end();
-//	//	++it)
-//	//{
-//	//	std::cout << "Header[" << it->first << "] = " << it->second << std::endl;
-//	//}
-
-//    //std::cout << "Body: " << body << std::endl;
-//}

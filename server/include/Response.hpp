@@ -18,6 +18,7 @@ class Response{
 		/* methods */
 		std::string reasonPhrase(int status);
 		std::string toString(); // to string
+		int getStatus() const;
 
 		/* setter */
 		void setStatus(int status);

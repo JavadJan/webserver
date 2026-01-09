@@ -24,7 +24,7 @@ class ResponseHandler
 	ResponseHandler(const ResponseHandler &res);
 	ResponseHandler &operator=(const ResponseHandler &other);
 	// getter
-	Response getResponse();
+	Response& getResponse();
 
 	void setSendBuffer(std::string str);
 	void setOffset(size_t offset);
@@ -33,11 +33,14 @@ class ResponseHandler
 	void handleGet();
 	void handlePost();
 	void handleDelete();
-
+	bool path_exist(std::string full_path);
 	class ResException: public std::exception{
 		public:
 		const char* what() const throw();
 	};
+
+	// send error page
+	void ErrorPage(const HttpRequest &req, struct Config servers);
 };
 
 #endif
