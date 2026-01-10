@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/21 10:57:07 by asemykin          #+#    #+#             */
-/*   Updated: 2025/12/21 11:03:01 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/10 01:30:46 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,9 +24,10 @@ Config &Config::operator=(const Config &copy)
 {
     if(this != &copy)
     {
-           ports = copy.ports;
-           root = copy.root;
-           errorPages = copy.errorPages;  
+           _ports = copy._ports;
+           _root = copy._root;
+           _errorPages = copy._errorPages;  
+           _config = copy._config;
     }
     
     return *this;
@@ -35,3 +36,39 @@ Config &Config::operator=(const Config &copy)
 Config::~Config()
 {}
 
+#include <fcntl.h>
+#include <unistd.h>
+#include <sstream>
+
+void Config::loadFile(const std::string &path)
+{
+    int fd = open(path.c_str(), O_RDONLY);
+    if(fd < 0)
+    {
+        // ERROR
+    }
+
+    char buffer[BUFFERSIZE];
+    std::stringstream ss;
+    // std::string configFile;
+    _config = "";
+    while(1)
+    {
+        ssize_t bytes = read(fd, buffer, sizeof(buffer));
+        if(bytes <= 0)
+            break;
+        _config.append(buffer, bytes);
+    }
+
+    close(fd);
+    
+    std::cout << _config << std::endl;
+    
+}
+
+std::string Config::parseConfig(const std::string &path)
+{
+    std::string line;
+
+    return line;
+}

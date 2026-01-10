@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/23 01:05:29 by asemykin          #+#    #+#             */
-/*   Updated: 2025/12/23 01:50:42 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/10 00:58:59 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,7 +62,7 @@ bool Client::getConnection()const
 
 ssize_t Client::readData()
 {
-    char buffer[2048];
+    char buffer[BUFFERSIZE];
     ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer), 0);
     
     if(bytesRead > 0)

@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/02 20:39:11 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/07 00:17:05 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/09 01:16:35 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,15 +37,22 @@ HTTPRequest::~HTTPRequest(){}
 
 bool HTTPRequest::isComplete(const std::string &buffer)
 {
+    // std::cout << "BUFFER IS: " << buffer << std::endl;
     // check if header has end
     size_t headerEnd = buffer.find("\r\n\r\n");
     if(headerEnd == std::string::npos)
+    {
+        std::cout << "A 1" << std::endl;   
         return false;
+    }
 
     // check Content-Length 
     size_t pos = buffer.find("Content-Length:");
     if(pos == std::string::npos)
+    {
+        std::cout << "A 2" << std::endl;
         return true;
+    }
 
     // get content length value
     
@@ -56,7 +63,10 @@ bool HTTPRequest::isComplete(const std::string &buffer)
     
     size_t endLength = buffer.find("\r\n", pos);
     if(endLength == std::string::npos)
+    {
+        std::cout << "A 3" << std::endl;
         return false;
+    }
     
     std::string contentLength_s = buffer.substr(pos, endLength - pos);
     int contentLength = std::atoi(contentLength_s.c_str());
@@ -64,6 +74,7 @@ bool HTTPRequest::isComplete(const std::string &buffer)
     (void)contentLength;
     // now calculate the body size ?
 
+    std::cout << "A 4" << std::endl;
     return true;
 }
 
@@ -79,7 +90,11 @@ void HTTPRequest::parseRequestLine(const std::string &buffer)
     std::string requestLine = buffer.substr(0, end);
     std::istringstream iss(requestLine);
     std::vector<std::string> words;
+    std::string word;
 
+    while(iss >> word)
+        words.push_back(word);
+    
     if(words.size() == 3)
     {
         _methode    = words[0];
@@ -138,7 +153,9 @@ void HTTPRequest::parseBody(const std::string &buffer)
     {
         size_t contentLength = std::atoi(_header["Content-Length"].c_str());
         size_t bodyStart = buffer.find("\r\n\r\n") + 4;
+        std::cout << "Body Info: " << contentLength << " " << bodyStart << std::endl;
         _body = buffer.substr(bodyStart, contentLength);
+        std::cout << "BODY IS: " << _body << std::endl;
     }
 }
 
@@ -150,4 +167,40 @@ void HTTPRequest::parseAll(const std::string &buffer)
     parseRequestLine(buffer);
     parseHeaders(buffer);
     parseBody(buffer);        
+}
+
+void HTTPRequest::appendData(const char *buffer, size_t len)
+{
+    // std::cout << "APPEND: " << buffer << " :: " << len << std::endl;
+    _data.append(buffer, len);
+}
+
+std::string HTTPRequest::getData()const
+{
+    return _data;
+}
+
+std::string HTTPRequest::getBody()const
+{
+    return _body;
+}
+
+std::string HTTPRequest::getMethode()const
+{
+    return _methode;
+}
+
+std::string HTTPRequest::getPath()const
+{
+    return _path;
+}
+
+std::string HTTPRequest::getVersion()const
+{
+    return _version;
+}
+
+std::map<std::string, std::string> HTTPRequest::getHeader()const
+{
+    return _header;
 }

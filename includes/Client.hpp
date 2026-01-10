@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/23 00:55:16 by asemykin          #+#    #+#             */
-/*   Updated: 2025/12/23 01:48:25 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/07 23:04:41 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,12 +16,17 @@
 #include <unistd.h>
 #include <netinet/in.h> // for recv
 
+#include "HTTPRequest.hpp"
+#include "Config.hpp"
+
 class Client
 {
     private:
         int         _fd;
         std::string _buffer;
         bool        _disconnected;
+        
+        HTTPRequest _request;
     public:
         Client();
         Client(int fd);

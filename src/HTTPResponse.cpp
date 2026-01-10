@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/06 23:36:59 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/06 23:57:12 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/09 15:56:40 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,6 +50,10 @@ void HTTPResponse::setHeader(const std::string &key, const std::string &value)
 void HTTPResponse::setBody(const std::string &body)
 {
     _body = body; 
+    
+    std::stringstream ss;
+    ss << _body.size();
+    setHeader("Content-Length", ss.str());
 }
 
 std::string HTTPResponse::reasonPhrase(int code)
@@ -57,10 +61,15 @@ std::string HTTPResponse::reasonPhrase(int code)
     switch (code)
     {
         case 200: return "OK";
+        
         case 404: return "Not Found";
         case 403: return "Forbidden";
         case 405: return "Method Not Allowed";
+        case 411: return "Length Required";
+        
         case 501: return "Not Implemented";
+
+        case 600: return "Temp Error code";
         default:  return "Error";
     }
 }
@@ -70,10 +79,26 @@ std::string HTTPResponse::response()
     std::stringstream ss;
 
     ss << "HTTP/1.1 " << _status << " " << reasonPhrase(_status) << "\r\n";
-    ss << "Content-Length: " << _body.size() << "\r\n";
-    ss << "Content-Type: " << "text/html\r\n";
+    
+    std::map<std::string, std::string>::iterator it = _headers.begin();
+    while(it != _headers.end())
+    {
+        ss << it->first << ": " << it->second << "\r\n";
+        it++;
+    }
+
     ss << "\r\n";
     ss << _body;
     
     return ss.str();
+}
+
+std::string HTTPResponse::getHeaderType(const std::string &key)
+{
+    if(_headers.find(key) == _headers.end())
+    {
+        std::cout << "DOES NOT EXISTS" << std::endl;
+        return "";
+    }
+    return _headers[key];
 }

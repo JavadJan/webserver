@@ -9,6 +9,8 @@ SRC       = $(SRC_DIR)/main.cpp \
 			$(SRC_DIR)/Config.cpp \
 			$(SRC_DIR)/HTTPRequest.cpp \
 			$(SRC_DIR)/HTTPResponse.cpp \
+			$(SRC_DIR)/HTTPHandler.cpp \
+			$(SRC_DIR)/MIME.cpp \
 			$(SRC_DIR)/Client.cpp
 
 OBJ_DIR   = obj

@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/21 18:34:47 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/06 23:01:47 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/10 00:58:23 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,28 +14,28 @@
 #include "../includes/Client.hpp"
 #include "../includes/Config.hpp"
 #include "../includes/HTTPRequest.hpp"
+#include "../includes/HTTPResponse.hpp"
+#include "../includes/HTTPHandler.hpp"
 
 #include <poll.h>
 #include <vector>
 #include <map>
 
-#define BUFFERSIZE 2048
+
 
 void insertPollfds(std::vector<struct pollfd> &pfds, int client);
 
-int main()
-{
-    HTTPRequest req;
 
-    req.parseBody("Hallo");
-}
-
-int main1()
+#include <string>
+int main(int argv, char **argc)
 {
-    Server server(4242);
+    if(argv != 2)
+        return 1;
+    // Server server(4243);
+    Server server(std::atoi(argc[1]));
     // Client client;
     std::vector<struct pollfd> pollfds;
-    std::map<int, std::string> clientRequests;
+    std::map<int, HTTPRequest> clientRequests;
     
     server.createSocket();
     server.setNonBlocking(server.getSocket());
@@ -46,6 +46,7 @@ int main1()
     while(true)
     {
         int ret = poll(&pollfds[0], pollfds.size(), 1000);
+        // std::cout << "1" << std::endl;
         if(ret < 0)
         {
             std::cout << "poll. errno: " << errno << std::endl;
@@ -55,31 +56,73 @@ int main1()
         {
             if(pollfds[i].revents & POLLIN) 
             {
+                std::cout << "2" << std::endl;
                 if(pollfds[i].fd == server.getSocket())
                 {
+                    std::cout << "3" << std::endl;
                     int clientFd = server.acceptClient();
                     if(clientFd >= 0)
                     {
+                        std::cout << "4" << std::endl;
                         // client.setFd(clientFd);
                         server.setNonBlocking(clientFd);
                         insertPollfds(pollfds, clientFd);
+                        clientRequests[clientFd] = HTTPRequest();
                     }
                 }
                 else
                 {
+                    std::cout << "5" << std::endl;
                     // client.readData();
                     char buffer[BUFFERSIZE];
                     ssize_t bytesRead = recv(pollfds[i].fd, buffer, BUFFERSIZE, 0);
                     
                     if(bytesRead > 0)
                     {
+                        std::cout << "6" << std::endl;
                         // handle recieved data
 
-                        clientRequests[pollfds[i].fd].append(buffer, bytesRead);  
-                        if(clientRequests[pollfds[i].fd].find("\r\n\r\n"))
+                        clientRequests[pollfds[i].fd].appendData(buffer, bytesRead);
+                          
+                        if(clientRequests[pollfds[i].fd].isComplete(clientRequests[pollfds[i].fd].getData()))
                         {
-                            std::cout << "FULL HTTP request received:\n" << clientRequests[pollfds[i].fd] << std::endl;
-                        }                      
+                            clientRequests[pollfds[i].fd].parseAll(clientRequests[pollfds[i].fd].getData());
+                            std::cout << "Methode: " << clientRequests[pollfds[i].fd].getMethode();
+                            std::cout << "\nPath: " << clientRequests[pollfds[i].fd].getPath();
+                            std::cout << "\nVersion: " << clientRequests[pollfds[i].fd].getVersion();
+                            std::cout << "\nBody: " << clientRequests[pollfds[i].fd].getBody() << "\n\n";
+                            
+                            // HTTPResponse httpRes;
+                            // httpRes.setStatus(200, "OK");
+                            // httpRes.setHeader("Content-Type", "text/plain");
+                            // std::string body = "Hello world\n";
+                            // std::stringstream ss;
+                            // ss << body.size();
+                            // httpRes.setHeader("Content-Length", ss.str());
+                            // httpRes.setBody(body);
+                            
+                            // HTTPResponse httpRes;
+                            // httpRes.setStatus(200, "OK");
+                            // httpRes.setBody("Hello world\n");
+                            // std::string response = httpRes.response();
+
+                            // send(pollfds[i].fd, response.c_str(), response.size(), 0);
+                            
+                            HTTPHandler han;
+                            han.setRequest(clientRequests[pollfds[i].fd]);
+                            han.handleRequest(clientRequests[pollfds[i].fd]);
+                            // httpRes.setStatus(200, "OK");
+                            // httpRes.setBody("Hello world\n");
+                            std::string response = han.getResponse();
+
+                            send(pollfds[i].fd, response.c_str(), response.size(), 0);
+                            
+                            close(pollfds[i].fd);
+                            pollfds.erase(pollfds.begin() + i);
+                            clientRequests.erase(pollfds[i].fd);
+                        }      
+                        else
+                            std::cout << "7" << std::endl;                
                         // buffer[bytesRead] = '\0';
                         // std::cout << "Recieved:\n" << buffer << std::endl;
 
