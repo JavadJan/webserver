@@ -19,6 +19,8 @@ class Response{
 		std::string reasonPhrase(int status);
 		std::string toString(); // to string
 		int getStatus() const;
+		std::string getBody() const;
+		std::map<std::string, std::string> getHeader() const;
 
 		/* setter */
 		void setStatus(int status);

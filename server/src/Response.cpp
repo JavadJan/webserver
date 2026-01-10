@@ -23,7 +23,18 @@ Response &Response::operator=(const Response &other)
 	}
 	return *this;
 }
+//------------------------------#
+//			getters				#
+//------------------------------#
+std::string Response::getBody() const 
+{
+	return this->body;
+}
 
+std::map<std::string, std::string> Response::getHeader() const
+{
+	return this->header;
+}
 
 //------------------------------#
 //			methods				#

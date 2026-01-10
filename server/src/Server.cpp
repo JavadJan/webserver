@@ -228,50 +228,48 @@ void	Server::read_data_from_socket(int i)
 		http_req[sender_fd].setPortServer(_port); //?????// there current server with[PORT] responses
 
 		//std::cout << "state: " << clientState[sender_fd] << std::endl;
-		if (http_req[sender_fd].getState() == HttpRequest::DONE)
+		if (http_req[sender_fd].getState() == HttpRequest::DONE 
+			|| http_req[sender_fd].getState() == HttpRequest::ERROR)
 		{
 			// when recv() finished enabple POLLOUT to send()
 			set_poll_events(sender_fd, POLLOUT); 
 
 			std::cout << "\n\nHTTP REQ: |" << http_req[sender_fd] 
 				<< "|\n\nCreate ResponseHandeler and controller "<< std::endl;
-			// req is valid->status == 200
-			//http_req[sender_fd].setStatusCode(200);
 			/* create an object from response handler */
 			ResponseHandler res;
-			//req, servers []
 			//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
 			res.controller(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
+			res.finalize(http_req[sender_fd], *http_req[sender_fd].getServerConfig());
 			//res.getResponse().setStatus(200); // set status code
 			std::string response = res.getResponse().toString(); // make foramt http res to string
-			
 			std::cout << "response: " << response << std::endl;
 			// fill the http_req for the clint == sender_fd, in write_data_to_fd() will send
 			http_req[sender_fd].sendBuffer = response ; 
 			http_req[sender_fd].sendOffset = 0;
 			http_req[sender_fd].setState(HttpRequest::SENDING);
 		}
-		else if (http_req[sender_fd].getState() == HttpRequest::ERROR)
-		{
-			std::cout << "sending an error page\n";
-			set_poll_events(sender_fd, POLLOUT); 
-			ResponseHandler resError;
+		//else if (http_req[sender_fd].getState() == HttpRequest::ERROR)
+		//{
+		//	std::cout << "sending an error page\n";
+		//	set_poll_events(sender_fd, POLLOUT); 
+		//	ResponseHandler resError;
 
-			//req, servers []
-			//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
-			//resError.ErrorPage(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
-			resError.getResponse().setStatus(http_req[sender_fd].getStatusCode()); // set status code for error
-			std::cout << "status code: " << "|" <<  http_req[sender_fd].getStatusCode() << std::endl;
-			std::cout << "status code: " << "|" <<  resError.getResponse().getStatus() << std::endl;
+		//	//req, servers []
+		//	//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
+		//	resError.ErrorPage(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
+		//	//resError.getResponse().setStatus(http_req[sender_fd].getStatusCode()); // set status code for error
+		//	//std::cout << "status code: " << "|" <<  http_req[sender_fd].getStatusCode() << std::endl;
+		//	//std::cout << "status code: " << "|" <<  resError.getResponse().getStatus() << std::endl;
 			
-			resError.getResponse().setBody(""); // set status code for error
-			std::string response = resError.getResponse().toString(); // make foramt http res to string
-			std::cout << "response: " << "|" << response  << std::endl;
-			// fill the http_req for the clint == sender_fd, in write_data_to_fd() will send
-			http_req[sender_fd].sendBuffer = response ; 
-			http_req[sender_fd].sendOffset = 0;
-			http_req[sender_fd].setState(HttpRequest::SENDING);
-		}
+		//	//resError.getResponse().setBody(""); // set status code for error
+		//	std::string response = resError.getResponse().toString(); // make foramt http res to string
+		//	std::cout << "response: " << "|" << response  << std::endl;
+		//	// fill the http_req for the clint == sender_fd, in write_data_to_fd() will send
+		//	http_req[sender_fd].sendBuffer = response ; 
+		//	http_req[sender_fd].sendOffset = 0;
+		//	http_req[sender_fd].setState(HttpRequest::SENDING);
+		//}
 	}
 	else
 	{

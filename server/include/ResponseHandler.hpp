@@ -30,6 +30,7 @@ class ResponseHandler
 	void setOffset(size_t offset);
 	// method controller
 	void controller(const HttpRequest &req,	struct Config servers);
+	void finalize(const HttpRequest &req, const Config& servers);
 	void handleGet();
 	void handlePost();
 	void handleDelete();
@@ -40,7 +41,7 @@ class ResponseHandler
 	};
 
 	// send error page
-	void ErrorPage(const HttpRequest &req, struct Config servers);
+	void renderErrorPage(const HttpRequest &req, const Config& server);
 };
 
 #endif

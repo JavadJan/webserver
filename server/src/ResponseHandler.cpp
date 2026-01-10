@@ -98,13 +98,7 @@ static std::string resolvePath(const std::string &req_path, const Location& loca
 bool ResponseHandler::path_exist(std::string full_path)
 {
 	struct stat st;
-	if (stat(full_path.c_str(), &st) == -1) // if not found
-	{
-		res.setStatus(404);
-		res.setBody("Not Found");
-		return false;
-	}
-	return true;
+    return (stat(full_path.c_str(), &st) == 0);
 }
 
 
@@ -185,7 +179,7 @@ void ResponseHandler::handleGet()
 	// directory
 	if (S_ISDIR(st.st_mode))
     {
-        // Try index
+        // Try index.html
         std::string index = full_path + "/index.html";
         if (stat(index.c_str(), &st) == 0)
             full_path = index;
@@ -205,9 +199,9 @@ void ResponseHandler::handleGet()
         return;
     }
 	std::stringstream buffer;
-    buffer << file.rdbuf();
+    buffer << file.rdbuf(); // has rdbuf() allowed?
 
-    res.setStatus(200);
+    res.setStatus(200); // set the correct status
     res.setBody(buffer.str());
 }
 
@@ -219,22 +213,72 @@ void ResponseHandler::handlePost()
 {
 
 }
+void ResponseHandler::finalize(const HttpRequest& req, const Config& server)
+{
+    if (res.getStatus() < 400)
+        return;
 
+    // if body already set, do nothing
+    if (!res.getBody().empty())
+        return;
+
+    renderErrorPage(req, server);
+}
 //--------------------------#
 // 			getter			#
 //--------------------------#
-
 Response& ResponseHandler::getResponse()
 {
 	return res;
 }
 
-void ResponseHandler::ErrorPage(const HttpRequest &req, struct Config servers)
+static void replaceAll(std::string& str, const std::string& from, const std::string& to)
 {
-	(void)req;
-	(void)servers;
-
+    size_t pos = 0;
+    while ((pos = str.find(from, pos)) != std::string::npos)
+    {
+        str.replace(pos, from.length(), to);
+        pos += to.length();
+    }
 }
+
+static std::string intToString(int value)
+{
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
+}
+
+void ResponseHandler::renderErrorPage(const HttpRequest &req, const Config& server)
+{
+    int status = res.getStatus();
+	(void)req;
+    std::map<std::string, std::vector<std::string> >::const_iterator it =
+        server.directives.find("error_page");
+
+    if (it == server.directives.end())
+    {
+        res.setBody("Error " + intToString(status));
+        return;
+    }
+
+    std::ifstream file(it->second[0].c_str());
+    if (!file)
+    {
+        res.setBody("Error " + intToString(status));
+        return;
+    }
+
+    std::stringstream buf;
+    buf << file.rdbuf();
+
+    std::string body = buf.str();
+    replaceAll(body, "{error}", intToString(status));
+    replaceAll(body, "{text}", res.reasonPhrase(status));
+
+    res.setBody(body);
+}
+
 /* 
 
 stat() is like asking the filesystem:
