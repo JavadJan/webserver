@@ -77,6 +77,7 @@ std::string Response::toString()
     ss << "HTTP/1.1 " << getStatus() << " " << reasonPhrase(getStatus()) << "\r\n";
     ss << "Content-Length: " << body.size() << "\r\n";
     ss << "Content-Type: text/html\r\n";
+	//ss << "Set-Cookie: yummy_cookie=chocolate\r\n";
     ss << "\r\n";
     ss << body;
 

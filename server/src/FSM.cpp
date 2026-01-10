@@ -1,5 +1,6 @@
 #include "../include/Server.hpp"
 #include "../include/HttpRequest.hpp"
+#include "../include/Config.hpp"
 
 /* 
 	read whole stream from recv,
@@ -41,44 +42,95 @@ std::string normalPath(std::string path)
 bool Server::validateRequestLine(int fd)
 {
 	// methos os case-sensitive?
-	std::cout << "method: " << http_req[fd].getMethod() << std::endl;
     if (http_req[fd].getMethod() != "GET" && http_req[fd].getMethod() != "POST" && http_req[fd].getMethod() != "DELETE")
 	{
 		http_req[fd].setStatusCode(400); // bad request
-		std::cout << "assignied to 400\n";
-		//http_req[fd].setState(HttpRequest::ERROR);
         return false;
 	}
 
     if (http_req[fd].getProtocol() != "HTTP/1.1")
 	{
-		//http_req[fd].setState(HttpRequest::ERROR);
 		http_req[fd].setStatusCode(505);
         return false;
 	}
 
     if (http_req[fd].getPath().empty() || http_req[fd].getPath()[0] != '/')
 	{
-		//http_req[fd].setState(HttpRequest::ERROR);
 		http_req[fd].setStatusCode(400);
         return false;
 	}
 
     return true;
 }
-//bool Server::validateHeaders(int fd)
-//{
+bool Server::validateHeaders(int fd)
+{
+    const HttpRequest& req = http_req[fd];
+    const std::map<std::string, std::string>& headers = req.getHeader();
 
-//    //if (req.getProtocol() == "HTTP/1.1"
-//    //    && !req.hasHeader("Host"))
-//    //    return setError(fd, 400);
+    // Host header (HTTP/1.1)
+    if (req.getProtocol() == "HTTP/1.1")
+    {
+        if (headers.find("Host") == headers.end())
+        {
+            http_req[fd].setStatusCode(400); // Bad Request
+            return false;
+        }
+    }
 
-//    //if (req.hasHeader("Content-Length")
-//    //    && !isValidContentLength(req))
-//    //    return setError(fd, 400);
+    // Content-Length checks
+    std::map<std::string, std::string>::const_iterator it =
+        headers.find("Content-Length");
 
-//    return true;
-//}
+    if (req.getMethod() == "POST")
+    {
+        if (it == headers.end())
+        {
+            http_req[fd].setStatusCode(411); // Length Required
+            return false;
+        }
+    }
+
+    if (it != headers.end())
+    {
+        // must be numeric
+        const std::string& value = it->second;
+        if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos)
+        {
+            http_req[fd].setStatusCode(400);
+            return false;
+        }
+
+        long long body_size = atoll(value.c_str());
+        if (body_size < 0)
+        {
+            http_req[fd].setStatusCode(400);
+            return false;
+        }
+
+        // -----------------------
+        // Max body size
+        // -----------------------
+        const Config* cfg = req.getServerConfig();
+        if (cfg)
+        {
+            std::map<std::string, std::vector<std::string> >::const_iterator mit =
+                cfg->directives.find("max_body_size");
+
+            if (mit != cfg->directives.end())
+            {
+                long long max_size = atoll(mit->second[0].c_str());
+                if (body_size > max_size)
+                {
+                    http_req[fd].setStatusCode(413); // Payload Too Large
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 //--------------------------#
 //			validation		#
 //--------------------------#
@@ -92,7 +144,7 @@ void Server::parseRequestLine(std::string buf, int sock_fd)
     std::string method, path, protocol;
     rl >> method >> path >> protocol;
 	path = normalPath(path);
-	std::cout << "path normal here: " << path << std::endl;
+
     http_req[sock_fd].setMethod(method); // not valid 405
 
     http_req[sock_fd].setPath(path); // error 400
@@ -226,17 +278,16 @@ void Server::fsm(int sock_fd)
 
 				if (http_req[sock_fd].getBuffer().find("Content-Length") != std::string::npos) // found body
 				{
-					int len = len_of_body(http_req[sock_fd].getBuffer().find("Content-Length"), http_req[sock_fd].getBuffer());
-					std::cout << "content len: " << len << std::endl;
-					
+					int len = len_of_body(http_req[sock_fd].getBuffer().find("Content-Length"), http_req[sock_fd].getBuffer());					
 					http_req[sock_fd].setContent(static_cast<size_t>(len));
 					
-					std::cout << "[HEADER STATE] has completed\n\n";
 					//clientState[sock_fd] = BODY;	
 					http_req[sock_fd].setState(HttpRequest::BODY);
 				}
 				else
 					http_req[sock_fd].setState(HttpRequest::DONE);
+				validateHeaders(sock_fd);
+
 				consume(0, header_end + delim, sock_fd);
 				continue;
 				//break;

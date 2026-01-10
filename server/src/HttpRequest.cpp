@@ -142,8 +142,7 @@ HttpRequest::STATE HttpRequest::getState() const
 	return state;
 }
 
-Config * HttpRequest::getServerConfig()
-{
+const Config* HttpRequest::getServerConfig() const{
 	return server;
 }
 

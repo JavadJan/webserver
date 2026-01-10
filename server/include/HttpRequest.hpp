@@ -38,7 +38,8 @@ class HttpRequest
 		int getCleintSocket () const;
 		std::string getPortServer() const;
 		bool getConnectionState();
-		Config * getServerConfig();
+		//Config * getServerConfig();
+		const Config* getServerConfig() const;
 		int	getStatusCode() const;
 		/* stetter */
 		void setMethod(const std::string& _method);
