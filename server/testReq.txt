@@ -5,6 +5,8 @@ nc 127.0.0.1 4545
 GET / HTTP/1.1
 Host: localhost
 
+3. curl -v http://127.0.0.1:4243/%2e%2e/%2e%2e/a
+
 
 
 /* 

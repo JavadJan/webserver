@@ -5,7 +5,6 @@ FLAGS = -Wall -Wextra -Werror -Iinclude -std=c++98
 
 H = include/
 HEADER = $(H)Server.hpp\
-         $(H)Request.hpp\
          $(H)Config.hpp\
          $(H)HttpRequest.hpp\
          $(H)Response.hpp\

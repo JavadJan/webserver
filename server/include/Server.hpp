@@ -7,6 +7,7 @@
 #include <cerrno>       // for errno, std::strerror
 #include <cstdlib>      // for std::exit
 #include <set>
+#include <queue>
 
 // POSIX headers (no C++ equivalents)
 #include <fcntl.h>

@@ -234,8 +234,7 @@ void	Server::read_data_from_socket(int i)
 			// when recv() finished enabple POLLOUT to send()
 			set_poll_events(sender_fd, POLLOUT); 
 
-			std::cout << "\n\nHTTP REQ: |" << http_req[sender_fd] 
-				<< "|\n\nCreate ResponseHandeler and controller "<< std::endl;
+			std::cout << "\n\nHTTP REQ AFTER FSM: |" << http_req[sender_fd] << std::endl;
 			/* create an object from response handler */
 			ResponseHandler res;
 			//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}

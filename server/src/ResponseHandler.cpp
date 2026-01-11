@@ -109,7 +109,11 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 {
 	std::cout << "what is request: " << req.getBody() << std::endl;
 	std::cout << "what is req path: " << req.getPath() << std::endl;
-	
+	if (req.getPath().empty())
+	{
+		res.setStatus(400);
+		return ;
+	}
 	struct Location location = matchLocation(server, req.getPath());
 	std::cout << "req.path that is match: " << location.path << std::endl;
 	if (location.empty)
