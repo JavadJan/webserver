@@ -22,7 +22,8 @@
 #include <string>
 #include <map>
 #include "../include/HttpRequest.hpp"
-
+#define MAX_HEADER_LINE 8192
+#define MAX_HEADER_SIZE 16384
 #define PORT 4242
 
 class Config;
@@ -66,17 +67,16 @@ class Server{
 		void read_data_from_socket(int i); // parsing heppen here
 		void write_data_to_socket(int i);
 		void set_poll_events(int fd, short events);
+		int create_socket_bind();
+		
+		/* state machine function */
 		bool validateRequestLine(int fd);
 		bool validateHeaders(int fd);
-		int create_socket_bind();
-
-		/* state machine function */
-		void ParseFSM(int sock_fd); // parser the REQ.buffer->object
-		void fsm(int sock_fd); // control strea string from TCP
-		/* in each state I remove after complition STATE */
 		void consume(size_t start, size_t end, int sock_fd);
 		void parseRequestLine(std::string buf, int sock_fd);
 		void parseHeader(std::string buf, int sock_fd);
+		void fsm(int sock_fd); // control strea string from TCP
+		/* in each state I remove after complition STATE */
 		public:
 			Server(std::vector<struct Config> serversConfig);
 

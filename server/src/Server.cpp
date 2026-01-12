@@ -138,7 +138,11 @@ void Server::run()
 		else if (status == 0)
 		{
 			// None of the sockets are ready
-			std::cout << "[Server on port: " << servers[0].port << "] listening ... " << std::endl;
+			std::cout << "[Server on port: "
+				 << servers[0].port << ", "
+				 << servers[1].port << ", "
+				 << servers[2].port
+				 << "] listening ... " << std::endl;
 			continue ; // skip the rest of loop after this line, start again to socket
 		}
 		// Loop on our array of sockets

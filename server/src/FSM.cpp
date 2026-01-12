@@ -2,10 +2,33 @@
 #include "../include/HttpRequest.hpp"
 #include "../include/Config.hpp"
 
-/* 
-	read whole stream from recv,
-	then pass to the fsm
+/*	------------------ INFO ABOUT FUNCION HAS BEEN USED -----------------------
+	******** parser the request line+ => <METHOD> <PATH> <HTPP VERSION>
+	static int error_to_code(const std::string err);
+	void Server::consume(size_t start, size_t end, int sock_fd);
+	static std::vector<std::string> splitPath(const std::string& normalized);
+	std::string normalPath(std::string path);
+	bool Server::validateRequestLine(int fd);
+	void Server::parseRequestLine(std::string buf, int sock_fd);
 */
+/*
+	******** parser http header; after first line start the header until \r\n
+	bool Server::validateHeaders(int fd);
+	void Server::parseHeader(std::string buf, int sock_fd);
+*/
+
+/*
+	******** decode the path with /%2e%2e/a/
+	static int hexValue(char c);
+	static std::string urlDecode(const std::string& input);
+*/
+
+/*	
+	******** read whole stream from recv, then parse in state machine
+	void Server::fsm(int sock_fd);
+*/
+
+
 static int error_to_code(const std::string err)
 {
 	if (err == "OK") return 200;
@@ -77,7 +100,6 @@ std::string normalPath(std::string path)
 	// STEP 2: split and resolve . and ..
     std::vector<std::string> parts = splitPath(normalized);
     std::vector<std::string> stack;
-	// %2e
     for (size_t i = 0; i < parts.size(); ++i)
     {
         if (parts[i].empty() || parts[i] == ".")
@@ -86,7 +108,7 @@ std::string normalPath(std::string path)
         if (parts[i] == "..")
         {
             if (stack.empty())
-                throw std::runtime_error("Bad Request");
+                throw std::runtime_error("Forbidden");
             stack.pop_back();
         }
         else
@@ -103,7 +125,6 @@ std::string normalPath(std::string path)
         if (i + 1 < stack.size())
             resolved += "/";
     }
-	std::cout << "resolved: " << resolved << std::endl;
     return resolved;
 }
 //--------------------------#
@@ -141,13 +162,29 @@ bool Server::validateHeaders(int fd)
 		
     // Host header (HTTP/1.1)
     if (req.getProtocol() == "HTTP/1.1")
-    {
-		if (headers.find("host") == headers.end())
-        {
-            http_req[fd].setStatusCode(400); // Bad Request
-            return false;
-		}	
-    }
+	{
+		bool host_found = false;
+		for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it)
+		{
+			std::string key = it->first;
+			// check case-insensitive
+			if (key.size() == 4 &&
+				(key[0]=='H'||key[0]=='h') &&
+				(key[1]=='o'||key[1]=='O') &&
+				(key[2]=='s'||key[2]=='S') &&
+				(key[3]=='t'||key[3]=='T'))
+			{
+				host_found = true;
+				break;
+			}
+		}
+		if (!host_found)
+		{
+			http_req[fd].setStatusCode(400); // Bad Request
+			return false;
+		}
+	}
+
 
     // Content-Length checks
     std::map<std::string, std::string>::const_iterator it =
@@ -259,27 +296,21 @@ void Server::parseRequestLine(std::string buf, int sock_fd)
 		throw std::runtime_error("Bad Request"); ;
 	}
 	std::string decoded  = urlDecode(path);
-	if (decoded.find("..") != std::string::npos)
-	{
-		http_req[sock_fd].setStatusCode(400);
-		http_req[sock_fd].setState(HttpRequest::ERROR);
-		throw std::runtime_error("Bad Request");
-	}
 	path = normalPath(decoded);
     http_req[sock_fd].setPath(path); // error 400
 
     http_req[sock_fd].setProtocol(protocol); // error 505
 }
 
-static std::string to_lower(std::string &key)
-{
-	std::string str;
-	for (size_t i = 0; i < key.size(); i++)
-	{
-		str += std::tolower(key[i]);
-	}
-	return str;
-}
+//static std::string to_lower(std::string &key)
+//{
+//	std::string str;
+//	for (size_t i = 0; i < key.size(); i++)
+//	{
+//		str += std::tolower(key[i]);
+//	}
+//	return str;
+//}
 void Server::parseHeader(std::string buf, int sock_fd)
 {
 	std::istringstream header_stream(buf);
@@ -293,6 +324,13 @@ void Server::parseHeader(std::string buf, int sock_fd)
 		// Remove trailing \r
 		if (!line.empty() && line[line.size() - 1] == '\r')
 			line.erase(line.size() - 1);
+
+		if (line.size() > MAX_HEADER_LINE) // it can throw an exeption as well
+		{
+			http_req[sock_fd].setStatusCode(431);
+			http_req[sock_fd].setState(HttpRequest::ERROR);
+			return;
+		}
 
 		size_t colon = line.find(':');
 		if (colon == std::string::npos)
@@ -314,34 +352,10 @@ void Server::parseHeader(std::string buf, int sock_fd)
             return ;
 		}
 		// HOST to lower case
-		key = to_lower(key);
+		//key = to_lower(key);
 		http_req[sock_fd].setHeader(key, value);
 	}
 }
-
-
-//int len_of_body(int pos, std::string recv)
-//{
-//	long long len = 0;
-
-//	// skip contetn len ->|:
-//	while (recv[pos] != ':')
-//		pos++;
-	
-//	while (recv[pos] == ' ' || recv[pos] == ':') pos++;
-
-//	int start = pos;
-//	// until end; count letter in num
-//	while (recv[pos] != '\n')
-//	{
-//		len++;
-//		pos++;
-//	}
-	
-//	len =  atoll(recv.substr(start, len).c_str());
-	
-//	return len;
-//}
 
 
 void Server::fsm(int sock_fd)
@@ -361,6 +375,7 @@ void Server::fsm(int sock_fd)
 		{
 			const std::string& buf = http_req[sock_fd].getBuffer();
 
+			// end of request line
 			size_t pos = buf.find("\r\n"); // nc end:\n curl end:\r\n
 			if (pos == std::string::npos)
 				pos = buf.find("\n");
@@ -404,7 +419,17 @@ void Server::fsm(int sock_fd)
 		case HttpRequest::HEADER:
 		{	
 			const std::string& buf = http_req[sock_fd].getBuffer();
+			//if header too large
+			std::cout << "buffer size to prevent from too large: " << buf.size() << std::endl;
+			if (buf.size() > 16 * 1026) // grather than 16kb
+			{
+				std::cout << "HEADER IS TOO LARGE\n";
+				http_req[sock_fd].setStatusCode(431);
+				http_req[sock_fd].setState(HttpRequest::ERROR);
+				return ;
+			}
 
+			// end of headers
 			size_t header_end = buf.find("\r\n\r\n");
 			size_t delim = 4;
 
@@ -412,6 +437,8 @@ void Server::fsm(int sock_fd)
 				header_end = buf.find("\n\n");
 				delim = 2;
 			}
+
+			
 
 			if (header_end != std::string::npos) {
 				std::string header_block = buf.substr(0, header_end);

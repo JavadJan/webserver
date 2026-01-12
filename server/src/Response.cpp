@@ -49,6 +49,8 @@ std::string Response::reasonPhrase(int code)
         case 405: return "Method Not Allowed";
         case 501: return "Not Implemented";
 		case 400: return "Bad Request!";
+		case 413: return "Payload Too Large";
+		case 431: return "Request Header Fields Too Large";
         default:  return "Error";
     }
 }
