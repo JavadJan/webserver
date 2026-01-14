@@ -41,6 +41,7 @@ std::map<std::string, std::string> Response::getHeader() const
 //------------------------------#
 std::string Response::reasonPhrase(int code)
 {
+	std::cout << "status code in creattion res: " << code << std::endl;
     switch (code)
     {
         case 200: return "OK";

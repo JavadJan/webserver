@@ -34,7 +34,7 @@ class HttpRequest
 		std::map<std::string,std::string>& getHeader();
 		const std::string& getBody () const;
 		const std::string& getBuffer () const;
-		size_t getContetn () const;
+		size_t getContetnLen () const;
 		int getCleintSocket () const;
 		std::string getPortServer() const;
 		bool getConnectionState();
@@ -48,9 +48,8 @@ class HttpRequest
 		void setHeader(const std::map<std::string, std::string>& header);
 		void setHeader(const std::string& key, const std::string& value);
 		void setBody(const std::string& body);
-		void setContent(size_t len);
+		void setContentLen(size_t len);
 		void setClientSocket(int fd);
-		void setPortServer(std::string port);
 		void setServerConfig(Config *server);
 		void setStatusCode(int status_code); // trace the status code for req valid
 		void clearBuffer();
@@ -59,12 +58,14 @@ class HttpRequest
 		void setCloseConnection(bool cstate);
 		void appendBuffer(std::string chunk, int bytes_read);
 		void eraseBuffer(size_t start, size_t end);
-
 		void resetForNextRequest();
+		/* header size */
+		void setHeaderSize(size_t h_size);
+		size_t getHeaderSize();
+		bool header_done;
 	private:
 		STATE state;
 		std::string recvBuffer;
-		std::string portServer;
 		// request line; first line
 		std::string method;
 		std::string path;
@@ -74,10 +75,12 @@ class HttpRequest
 		std::map<std::string, std::string>	header; // header["host"] : "127.0.0.1:8080"
 		size_t conten_len;
 		std::string	body;
-
+		
 		struct Config* server;
 		bool connection_close;
 		int statusCode; // trace the valid request
+		size_t header_size;
+
 };
 
 

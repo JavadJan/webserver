@@ -190,14 +190,14 @@ bool Server::validateHeaders(int fd)
     std::map<std::string, std::string>::const_iterator it =
 		headers.find("Content-Length");
 	
-    if (req.getMethod() == "POST")
-    {
-        if (it == headers.end()) // if method == post then req should include content-len
-        {
-            http_req[fd].setStatusCode(411); // Length Required
-            return false;
-        }
-    }
+    //if (req.getMethod() == "POST")
+    //{
+    //    if (it == headers.end()) // if method == post then req should include content-len
+    //    {
+    //        http_req[fd].setStatusCode(411); // Length Required
+    //        return false;
+    //    }
+    //}
 
     if (it != headers.end())
     {
@@ -302,15 +302,6 @@ void Server::parseRequestLine(std::string buf, int sock_fd)
     http_req[sock_fd].setProtocol(protocol); // error 505
 }
 
-//static std::string to_lower(std::string &key)
-//{
-//	std::string str;
-//	for (size_t i = 0; i < key.size(); i++)
-//	{
-//		str += std::tolower(key[i]);
-//	}
-//	return str;
-//}
 void Server::parseHeader(std::string buf, int sock_fd)
 {
 	std::istringstream header_stream(buf);
@@ -325,12 +316,13 @@ void Server::parseHeader(std::string buf, int sock_fd)
 		if (!line.empty() && line[line.size() - 1] == '\r')
 			line.erase(line.size() - 1);
 
-		if (line.size() > MAX_HEADER_LINE) // it can throw an exeption as well
-		{
-			http_req[sock_fd].setStatusCode(431);
-			http_req[sock_fd].setState(HttpRequest::ERROR);
-			return;
-		}
+		//if (line.size() > MAX_HEADER_LINE) // it can throw an exeption as well
+		//{
+		//	http_req[sock_fd].setStatusCode(431);
+		//	http_req[sock_fd].setState(HttpRequest::ERROR);
+		//	std::cout << "REACH MAX HEADER LINE\n";
+		//	return;
+		//}
 
 		size_t colon = line.find(':');
 		if (colon == std::string::npos)
@@ -373,6 +365,7 @@ void Server::fsm(int sock_fd)
 		{
 		case HttpRequest::REQ_LINE:
 		{
+			std::cout << "arived to fsm [STATE]: " << http_req[sock_fd].getState() << std::endl;
 			const std::string& buf = http_req[sock_fd].getBuffer();
 
 			// end of request line
@@ -384,6 +377,7 @@ void Server::fsm(int sock_fd)
 			{
 				// extract each portion of http request and set them
 				std::string req_line = buf.substr(0, pos);
+				std::cout << "request line: " << req_line << std::endl;
 				try
 				{
 					parseRequestLine(req_line, sock_fd);
@@ -391,6 +385,9 @@ void Server::fsm(int sock_fd)
 				catch(const std::exception& e)
 				{
 					std::string s = e.what();
+					std::cout << "🚨🚨🚨 ERROR in parse request line: " << "method: " << http_req[sock_fd].getMethod()
+							<< ", path: " << http_req[sock_fd].getPath() << ", protocol: " 
+							<< http_req[sock_fd].getProtocol() << std::endl;
 					http_req[sock_fd].setStatusCode(error_to_code(s));
 					http_req[sock_fd].setState(HttpRequest::ERROR);
 					return;
@@ -405,11 +402,14 @@ void Server::fsm(int sock_fd)
 				{
 					// if find error stop the program to continue
 					http_req[sock_fd].setState(HttpRequest::ERROR);
-					std::cout << "transit to error state\n";
+					std::cout << "🚨🚨🚨 ERROR in validation request line" << http_req[sock_fd].getMethod()
+							<< " " << http_req[sock_fd].getPath() << " " 
+							<< http_req[sock_fd].getProtocol() << std::endl;
 					return ; 
 				}
 				http_req[sock_fd].setState(HttpRequest::HEADER);
-				std::cout << "[REQ_LINE STATE] has completed, parse the req_line then go header\n\n";
+				//http_req[sock_fd].setHeaderSize(http_req[sock_fd].getHeaderSize());
+				std::cout << "[REQ_LINE STATE] has completed, Transit to HEADER\n\n";
 				continue;
 				//break;
 			}
@@ -418,27 +418,24 @@ void Server::fsm(int sock_fd)
 		}
 		case HttpRequest::HEADER:
 		{	
-			const std::string& buf = http_req[sock_fd].getBuffer();
-			//if header too large
-			std::cout << "buffer size to prevent from too large: " << buf.size() << std::endl;
-			if (buf.size() > 16 * 1026) // grather than 16kb
+			//std::cout << "✴️✴️✴️ HEADER STATE ✴️✴️✴️\n";
+			const std::string& buf = http_req[sock_fd].getBuffer();	
+			std::cout << http_req[sock_fd].getHeaderSize() << "✴️✴️✴️ HEADER STATE ✴️✴️✴️\n";
+			if (http_req[sock_fd].getHeaderSize() > MAX_HEADER_SIZE) // grather than 16kb
 			{
-				std::cout << "HEADER IS TOO LARGE\n";
 				http_req[sock_fd].setStatusCode(431);
 				http_req[sock_fd].setState(HttpRequest::ERROR);
+				std::cout << "🚨🚨🚨 ERROR in header size" << buf.size() << std::endl;
 				return ;
-			}
-
+			}		
 			// end of headers
 			size_t header_end = buf.find("\r\n\r\n");
 			size_t delim = 4;
-
+			
 			if (header_end == std::string::npos) {
 				header_end = buf.find("\n\n");
 				delim = 2;
 			}
-
-			
 
 			if (header_end != std::string::npos) {
 				std::string header_block = buf.substr(0, header_end);
@@ -449,21 +446,24 @@ void Server::fsm(int sock_fd)
 				if (it != headers.end() && http_req[sock_fd].getMethod() == "POST")
 				{
 					long len = atoi(headers["Content-Length"].c_str());	
-					http_req[sock_fd].setContent(static_cast<size_t>(len));
+					http_req[sock_fd].setContentLen(static_cast<size_t>(len));
 					
 					//clientState[sock_fd] = BODY;	
 					http_req[sock_fd].setState(HttpRequest::BODY);
 				}
-				else if (it != headers.end() && ((http_req[sock_fd].getMethod() == "GET") || (http_req[sock_fd].getMethod() == "DELETE")) ) // in get() no body
+				else if (it != headers.end() && (http_req[sock_fd].getMethod() != "POST") ) // in get() no body
 				{
 					http_req[sock_fd].setStatusCode(400);
 					http_req[sock_fd].setState(HttpRequest::ERROR);
+					std::cout << "🚨🚨🚨 ERROR: no Contetn-len" << 400 << std::endl;
+
 				}
 				else
 					http_req[sock_fd].setState(HttpRequest::DONE);
 				if(!validateHeaders(sock_fd))
 				{
 					http_req[sock_fd].setState(HttpRequest::ERROR);
+					std::cout << "🚨🚨🚨 ERROR: validatoin header" << http_req[sock_fd].getStatusCode() << std::endl;
 					return ;
 				} 
 					
@@ -473,18 +473,18 @@ void Server::fsm(int sock_fd)
 				//break;
 			}
 			// if arrive here it meand the header has completed	
-			break;
+			return;
 		}
 		case HttpRequest::BODY:
 		{
 			const std::string &buf = http_req[sock_fd].getBuffer();
-			if (buf.size() < http_req[sock_fd].getContetn())
+			if (buf.size() < http_req[sock_fd].getContetnLen())
 				return; // not complete
 
-			std::string body = buf.substr(0, http_req[sock_fd].getContetn());
+			std::string body = buf.substr(0, http_req[sock_fd].getContetnLen());
 			http_req[sock_fd].setBody(body);
 
-			consume(0,http_req[sock_fd].getContetn(), sock_fd);
+			consume(0,http_req[sock_fd].getContetnLen(), sock_fd);
 
 			http_req[sock_fd].setState(HttpRequest::DONE);
 			break;
@@ -498,6 +498,7 @@ void Server::fsm(int sock_fd)
 			// transition goes to the sending, but send an error_page
 			//http_req[sock_fd].setState(HttpRequest::SENDING);
 			//
+			std::cout << "🚨🚨🚨 ERROR: validatoin header" << http_req[sock_fd].getStatusCode() << std::endl;
 			return;
 		}
 		default:

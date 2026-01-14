@@ -32,9 +32,6 @@ class Config;
 class Server{
 	private:
 		
-		/* data for make connection, ip, port, sockets */
-		std::string _port;
-
 		// for every socket map a server
 		std::map<int, Config> serverfd_config;
 
@@ -79,7 +76,7 @@ class Server{
 		/* in each state I remove after complition STATE */
 		public:
 			Server(std::vector<struct Config> serversConfig);
-
+			~Server();
 			void setServerConfig(Config conf);
 
 			void run();

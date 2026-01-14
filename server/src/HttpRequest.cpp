@@ -1,7 +1,13 @@
 #include "../include/HttpRequest.hpp"
 
-HttpRequest::HttpRequest(): state(REQ_LINE), conten_len(0), connection_close(false), statusCode(0)
+HttpRequest::HttpRequest()
+: state(REQ_LINE), 
+conten_len(0), 
+connection_close(false), 
+statusCode(0),
+header_size(0)
 {
+	header_done = false;
 	std::cout << "default constructor called" << state << std::endl;
 }
 HttpRequest::~HttpRequest()
@@ -46,42 +52,6 @@ void HttpRequest::resetForNextRequest()
 	conten_len = 0;
 }
 
-
-bool isMethod(std::string method)
-{
-	 std::string normalized = method;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   (int(*)(int))std::toupper);
-	if (method.find("GET") != std::string::npos && method.size() == 3)
-		return true;
-	else if (method.find("POST") != std::string::npos && method.size() == 4)
-		return true;
-	else if (method.find("DELETE") != std::string::npos && method.size() == 6)
-		return true;
-	return false;
-}
-
-
-bool isHTTP(const std::string& http) {
-    // Normalize to uppercase
-    std::string normalized = http;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   (int(*)(int))std::toupper); // cast needed in C++98
-
-    // Pool of valid HTTP versions
-    static const char* httpPool[] = {
-        "HTTP/0.9", "HTTP/1.0", "HTTP/1.1", "HTTP/2", "HTTP/3"
-    };
-
-    // Exact match check
-    for (int i = 0; i < 5; ++i) {
-        if (normalized == httpPool[i]) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void HttpRequest::eraseBuffer(size_t start, size_t end)
 {
 	this->recvBuffer.erase(start, end);
@@ -98,10 +68,10 @@ bool HttpRequest::getConnectionState()
 {
 	return connection_close;
 }
-std::string HttpRequest::getPortServer() const
-{
-	return portServer;
-}
+//std::string HttpRequest::getPortServer() const
+//{
+//	return portServer;
+//}
 int HttpRequest::getCleintSocket() const
 {
 	return sock_fd_cleint;
@@ -133,7 +103,7 @@ const std::string& HttpRequest::getBuffer() const{
 	return recvBuffer;
 }
 
-size_t HttpRequest::getContetn() const{
+size_t HttpRequest::getContetnLen() const{
 	return conten_len;
 }
 
@@ -158,16 +128,43 @@ void HttpRequest::setCloseConnection(bool cstate)
 {
 	this->connection_close = cstate;
 }
+
+void HttpRequest::setHeaderSize(size_t h_size)
+{
+	this->header_size = h_size;
+}
+size_t HttpRequest::getHeaderSize()
+{
+	return this->header_size;
+}
+
 void HttpRequest::setStatusCode(int status_code){this->statusCode = status_code;}
 void HttpRequest::setState(enum STATE state){ this->state = state;}
 void HttpRequest::setClientSocket(int sock_fd){ this->sock_fd_cleint = sock_fd;}
-void HttpRequest::setPortServer(std::string port){ this->portServer = port;}
+//void HttpRequest::setPortServer(std::string port){ this->portServer = port;}
 void HttpRequest::appendBuffer(std::string chunk, int bytes_read)
 {
     if (bytes_read > static_cast<int>(chunk.size()))
         bytes_read = chunk.size();
     recvBuffer.append(chunk, 0, bytes_read);
-    //std::cout << "in append: " << recvBuffer  << "-->|" << std::endl;
+
+	if (!header_done)
+    {
+		header_size += bytes_read;
+		//if (header_size > 16384)
+        //{
+        //    state = ERROR;
+        //    this->statusCode = 431;
+        //    return;
+        //}
+        size_t pos = recvBuffer.find("\r\n\r\n");
+        if (pos != std::string::npos)
+        {
+            header_size = (pos + 4); // recvBuffer already has whole header
+			std::cout << "HEADER SIZE: " << header_size << std::endl;
+            header_done = true;
+        }
+    }
 }
 
 void HttpRequest::setMethod(const std::string& x) {
@@ -194,7 +191,7 @@ void HttpRequest::setHeader(const std::map<std::string, std::string>& hdr) {
     header = hdr; // replace entire header map
 }
 
-void HttpRequest::setContent(size_t len) {
+void HttpRequest::setContentLen(size_t len) {
     this->conten_len = len; // replace entire header map
 }
 

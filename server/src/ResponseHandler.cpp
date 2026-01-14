@@ -255,17 +255,21 @@ static std::string intToString(int value)
 
 void ResponseHandler::renderErrorPage(const HttpRequest &req, const Config& server)
 {
-    int status = res.getStatus();
+    int status = req.getStatusCode();
+	res.setStatus(req.getStatusCode());
+	std::cout << "status code : " << status << std::endl;
 	(void)req;
     std::map<std::string, std::vector<std::string> >::const_iterator it =
         server.directives.find("error_page");
 
+	// did not find error page in server config
     if (it == server.directives.end())
     {
         res.setBody("Error " + intToString(status));
         return;
     }
 
+	// did not find the path for error page
     std::ifstream file(it->second[0].c_str());
     if (!file)
     {
