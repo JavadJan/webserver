@@ -2,7 +2,7 @@
 //------------------------------#
 //			constructors		#
 //------------------------------#
-Response::Response():status(404), body("")
+Response::Response():statusCode(404), body("")
 {
 
 } // response to this request, this req has the socket fd
@@ -17,7 +17,7 @@ Response &Response::operator=(const Response &other)
 {
 	if (this != &other)
 	{
-		this->status = other.status;
+		this->statusCode = other.statusCode;
 		this->body = other.body;
 		this->header = other.header;
 	}
@@ -56,9 +56,9 @@ std::string Response::reasonPhrase(int code)
     }
 }
 
-void Response::setStatus(int status)
+void Response::setStatusCode(int statusCode)
 {
-	this->status = status;
+	this->statusCode = statusCode;
 }
 void Response::setBody(std::string body)
 {
@@ -69,15 +69,15 @@ void Response::setHeader(std::map<std::string, std::string> header)
 	this->header = header;
 }
 
-int Response::getStatus() const {
-	return this->status;
+int Response::getStatusCode() const {
+	return this->statusCode;
 }
 
 std::string Response::toString()
 {
     std::stringstream ss;
 
-    ss << "HTTP/1.1 " << getStatus() << " " << reasonPhrase(getStatus()) << "\r\n";
+    ss << "HTTP/1.1 " << getStatusCode() << " " << reasonPhrase(getStatusCode()) << "\r\n";
     ss << "Content-Length: " << body.size() << "\r\n";
     ss << "Content-Type: text/html\r\n";
 	//ss << "Set-Cookie: yummy_cookie=chocolate\r\n";

@@ -217,8 +217,8 @@ void	Server::read_data_from_socket(int i)
 	sender_fd = poll_fds[i].fd;
 	memset(&chunk, '\0', sizeof(chunk));
 	//recv() just reads whatever bytes are currently available in the kernel buffer for that socket.
-	if (http_req[sender_fd].getHeaderSize() < MAX_HEADER_SIZE)
-		bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
+	//if (http_req[sender_fd].getHeaderSize() < MAX_HEADER_SIZE)
+	bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
 		
 	if (bytes_read > 0)
 	{
@@ -226,8 +226,14 @@ void	Server::read_data_from_socket(int i)
 		// but not to the server socket or the sender socket
 		std::cout << "\n[" << sender_fd << "] Got message: start ----->\n" << chunk << "\n<----------end request\n\n";
 		http_req[sender_fd].appendBuffer(chunk, bytes_read);
-		
-		fsm(sender_fd); // in fsm get req with http_req[sender_fd]
+		if (http_req[sender_fd].getHeaderSize() > MAX_HEADER_SIZE)
+		{
+
+			http_req[sender_fd].setStatusCode(431);
+			http_req[sender_fd].setState(HttpRequest::ERROR);
+		}
+		//if (http_req[sender_fd].getState() != HttpRequest::ERROR)
+			fsm(sender_fd); // in fsm get req with http_req[sender_fd]
 		std::cout <<http_req[sender_fd].getBuffer().size() << " MAX\n";
 		
 		http_req[sender_fd].setClientSocket(sender_fd); // client<->server
@@ -268,18 +274,20 @@ void	Server::read_data_from_socket(int i)
 			close(sender_fd);
 			http_req.erase(sender_fd);
 			del_from_poll_fds(i); 
+			return ;
 		} 
-		else
-		{
+		//else
+		//{
+		// there is still value in kernell buffer
 			if (errno != EAGAIN && errno != EWOULDBLOCK) {
-				std::cerr << "RECV " << strerror(errno) << std::endl;
 				return ;
 			}
+			std::cerr << "RECV " << strerror(errno) << std::endl;
 			close(sender_fd);
 			http_req.erase(sender_fd);
 			del_from_poll_fds(i);
-			i--;
-		}
+			return ;
+		//}
 	}
 }
 
@@ -292,7 +300,7 @@ void Server::write_data_to_socket(int i)
     // Try to send the remaining part of the buffer
     ssize_t n = send(fd, req.sendBuffer.data() + req.sendOffset, 
                      req.sendBuffer.size() - req.sendOffset, 0);
-
+	
     if (n > 0) 
 	{
         req.sendOffset += n; // update offset
@@ -305,6 +313,8 @@ void Server::write_data_to_socket(int i)
         // Handle actual error (close connection)
     	return;
     }
+	// reset the value of header size,
+	req.setHeaderSize(0);
 
     // Is the whole buffer sent?
     if (req.sendOffset >= req.sendBuffer.size()) 
@@ -321,7 +331,6 @@ void Server::write_data_to_socket(int i)
             // Cleanup and close
 			close(fd);                 // TCP layer
 			del_from_poll_fds(i);             // event layer
-			i--; // after delete, decrement
 			http_req.erase(fd);        // HTTP state cleanup
 			req.setState(HttpRequest::REQ_LINE);
 			return;

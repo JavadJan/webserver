@@ -7,7 +7,7 @@
 
 class Response{
 	private:
-		int status;
+		int statusCode;
 		std::string body;
 		std::map<std::string, std::string> header;
 	public:
@@ -18,12 +18,12 @@ class Response{
 		/* methods */
 		std::string reasonPhrase(int status);
 		std::string toString(); // to string
-		int getStatus() const;
+		int getStatusCode() const;
 		std::string getBody() const;
 		std::map<std::string, std::string> getHeader() const;
 
 		/* setter */
-		void setStatus(int status);
+		void setStatusCode(int status);
 		void setBody(std::string body);
 		void setHeader(std::map<std::string, std::string> header);
 };

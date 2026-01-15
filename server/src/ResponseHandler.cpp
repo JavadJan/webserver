@@ -111,14 +111,14 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	std::cout << "what is req path: " << req.getPath() << std::endl;
 	if (req.getPath().empty())
 	{
-		res.setStatus(400);
+		res.setStatusCode(400);
 		return ;
 	}
 	struct Location location = matchLocation(server, req.getPath());
 	std::cout << "req.path that is match: " << location.path << std::endl;
 	if (location.empty)
 	{
-		res.setStatus(404);
+		res.setStatusCode(404);
 		std::cout << "send: 404\n";
 	}
 
@@ -128,13 +128,13 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	std::cout << "full path: " << full_path << std::endl;
 	if (!path_exist(full_path)) // ./tmp/www/form does not exist
 	{
-		res.setStatus(404);
+		res.setStatusCode(404);
 		return;
 	}
 
 	if (!methodAllowed(location, req.getMethod()))
 	{
-		res.setStatus(405);
+		res.setStatusCode(405);
 		std::cout << "send:	respond 405 " <<std::endl;
 		return;
 	}
@@ -152,7 +152,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		handleDelete();
 	else 
 	{
-		res.setStatus(501);
+		res.setStatusCode(501);
 		std::cout << "respond 501\n";
 
 	}	
@@ -174,7 +174,7 @@ void ResponseHandler::handleGet()
 	struct stat st;
 	if (stat(full_path.c_str(), &st) == -1) // if not found
 	{
-		res.setStatus(404);
+		res.setStatusCode(404);
 		res.setBody("Not Found");
 		return ;
 	}
@@ -189,7 +189,7 @@ void ResponseHandler::handleGet()
             full_path = index;
         else
         {
-            res.setStatus(403);
+            res.setStatusCode(403);
             res.setBody("Forbidden");
             return;
         }
@@ -198,14 +198,14 @@ void ResponseHandler::handleGet()
 	std::ifstream file(full_path.c_str()); // here read why?
     if (!file)
     {
-        res.setStatus(403);
+        res.setStatusCode(403);
         res.setBody("Forbidden");
         return;
     }
 	std::stringstream buffer;
     buffer << file.rdbuf(); // has rdbuf() allowed?
 
-    res.setStatus(200); // set the correct status
+    res.setStatusCode(200); // set the correct status
     res.setBody(buffer.str());
 }
 
@@ -219,7 +219,7 @@ void ResponseHandler::handlePost()
 }
 void ResponseHandler::finalize(const HttpRequest& req, const Config& server)
 {
-    if (res.getStatus() < 400)
+    if (res.getStatusCode() < 400)
         return;
 
     // if body already set, do nothing
@@ -255,8 +255,9 @@ static std::string intToString(int value)
 
 void ResponseHandler::renderErrorPage(const HttpRequest &req, const Config& server)
 {
+	// 
     int status = req.getStatusCode();
-	res.setStatus(req.getStatusCode());
+	res.setStatusCode(req.getStatusCode());
 	std::cout << "status code : " << status << std::endl;
 	(void)req;
     std::map<std::string, std::vector<std::string> >::const_iterator it =
