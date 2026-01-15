@@ -421,10 +421,13 @@ void Server::fsm(int sock_fd)
 			//std::cout << "✴️✴️✴️ HEADER STATE ✴️✴️✴️\n";
 			const std::string& buf = http_req[sock_fd].getBuffer();	
 			std::cout << http_req[sock_fd].getHeaderSize() << "✴️✴️✴️ HEADER STATE ✴️✴️✴️\n";
-			if (http_req[sock_fd].getHeaderSize() > MAX_HEADER_SIZE) // grather than 16kb
+
+			// if header size was too large > 16kb
+			if (buf.size() > MAX_HEADER_SIZE)
 			{
 				http_req[sock_fd].setStatusCode(431);
 				http_req[sock_fd].setState(HttpRequest::ERROR);
+				
 				std::cout << "🚨🚨🚨 ERROR in header size" << buf.size() << std::endl;
 				return ;
 			}		
@@ -498,6 +501,7 @@ void Server::fsm(int sock_fd)
 			// transition goes to the sending, but send an error_page
 			//http_req[sock_fd].setState(HttpRequest::SENDING);
 			//
+			http_req[sock_fd].shouldClose = true;
 			std::cout << "🚨🚨🚨 ERROR: validatoin header" << http_req[sock_fd].getStatusCode() << std::endl;
 			return;
 		}

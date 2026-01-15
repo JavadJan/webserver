@@ -62,6 +62,7 @@ class HttpRequest
 		/* header size */
 		void setHeaderSize(size_t h_size);
 		size_t getHeaderSize();
+		bool shouldClose;
 		bool header_done;
 	private:
 		STATE state;

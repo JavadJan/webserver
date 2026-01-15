@@ -8,6 +8,7 @@ statusCode(0),
 header_size(0)
 {
 	header_done = false;
+	shouldClose = false;
 	std::cout << "default constructor called" << state << std::endl;
 }
 HttpRequest::~HttpRequest()
@@ -50,6 +51,7 @@ void HttpRequest::resetForNextRequest()
     state = REQ_LINE;
 	body.clear();
 	conten_len = 0;
+	shouldClose = false;
 }
 
 void HttpRequest::eraseBuffer(size_t start, size_t end)
@@ -151,12 +153,13 @@ void HttpRequest::appendBuffer(std::string chunk, int bytes_read)
 	if (!header_done)
     {
 		header_size += bytes_read;
-		//if (header_size > 16384)
-        //{
-        //    state = ERROR;
-        //    this->statusCode = 431;
-        //    return;
-        //}
+		if (header_size > 16384)
+        {
+            state = ERROR;
+            this->statusCode = 431;
+			shouldClose = true;
+            return;
+        }
         size_t pos = recvBuffer.find("\r\n\r\n");
         if (pos != std::string::npos)
         {

@@ -26,5 +26,6 @@ class Response{
 		void setStatusCode(int status);
 		void setBody(std::string body);
 		void setHeader(std::map<std::string, std::string> header);
+		void setHeader(const std::string& key, const std::string& value);
 };
 #endif

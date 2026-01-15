@@ -68,7 +68,10 @@ void Response::setHeader(std::map<std::string, std::string> header)
 {
 	this->header = header;
 }
-
+void Response::setHeader(const std::string& key, const std::string& value)
+{
+	this->header[key] = value;
+} 
 int Response::getStatusCode() const {
 	return this->statusCode;
 }

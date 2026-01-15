@@ -217,7 +217,12 @@ void	Server::read_data_from_socket(int i)
 	sender_fd = poll_fds[i].fd;
 	memset(&chunk, '\0', sizeof(chunk));
 	//recv() just reads whatever bytes are currently available in the kernel buffer for that socket.
-	//if (http_req[sender_fd].getHeaderSize() < MAX_HEADER_SIZE)
+	if (http_req[sender_fd].getState() == HttpRequest::SENDING ||
+    http_req[sender_fd].getState() == HttpRequest::ERROR)
+	{
+		return; // ignore all incoming data
+	}
+
 	bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
 		
 	if (bytes_read > 0)
@@ -228,7 +233,7 @@ void	Server::read_data_from_socket(int i)
 		http_req[sender_fd].appendBuffer(chunk, bytes_read);
 		if (http_req[sender_fd].getHeaderSize() > MAX_HEADER_SIZE)
 		{
-
+			std::cout << "header size to large" <<  http_req[sender_fd].getHeaderSize() << std::endl;
 			http_req[sender_fd].setStatusCode(431);
 			http_req[sender_fd].setState(HttpRequest::ERROR);
 		}
@@ -252,6 +257,8 @@ void	Server::read_data_from_socket(int i)
 			if (http_req[sender_fd].getStatusCode() < 400)
 				res.controller(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
 			
+			if (http_req[sender_fd].getState() == HttpRequest::ERROR)
+				res.getResponse().setHeader("Connection", "close");
 			res.finalize(http_req[sender_fd], *http_req[sender_fd].getServerConfig());
 			//res.getResponse().setStatus(200); // set status code
 			response = res.getResponse().toString(); // make foramt http res to string
@@ -314,7 +321,16 @@ void Server::write_data_to_socket(int i)
     	return;
     }
 	// reset the value of header size,
-	req.setHeaderSize(0);
+	//req.setHeaderSize(0);
+	if (req.shouldClose)
+	{
+		close(fd);
+		del_from_poll_fds(i);
+		http_req.erase(fd);
+		//req.resetForNextRequest();
+        //req.setState(HttpRequest::REQ_LINE);
+		return;
+	}
 
     // Is the whole buffer sent?
     if (req.sendOffset >= req.sendBuffer.size()) 
