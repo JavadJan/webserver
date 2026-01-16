@@ -52,15 +52,16 @@ class HttpRequest
 		void setClientSocket(int fd);
 		void setServerConfig(Config *server);
 		void setStatusCode(int status_code); // trace the status code for req valid
-		void clearBuffer();
-		
-		void setState(enum STATE state);
+		void setHeaderSize(size_t h_size);
 		void setCloseConnection(bool cstate);
+		void setState(enum STATE state);
+		
+		
+		void clearBuffer();
 		void appendBuffer(std::string chunk, int bytes_read);
 		void eraseBuffer(size_t start, size_t end);
 		void resetForNextRequest();
 		/* header size */
-		void setHeaderSize(size_t h_size);
 		size_t getHeaderSize();
 		bool shouldClose;
 		bool header_done;
@@ -83,9 +84,6 @@ class HttpRequest
 		size_t header_size;
 
 };
-
-
-bool isMethod(std::string method);
 
 //std::ostream& operator<<(std::ostream& out, HttpRequest& http);
 std::ostream& operator<<(std::ostream& out, const HttpRequest& http);

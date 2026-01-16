@@ -218,7 +218,7 @@ void	Server::read_data_from_socket(int i)
 	memset(&chunk, '\0', sizeof(chunk));
 	//recv() just reads whatever bytes are currently available in the kernel buffer for that socket.
 	if (http_req[sender_fd].getState() == HttpRequest::SENDING ||
-    http_req[sender_fd].getState() == HttpRequest::ERROR)
+    	http_req[sender_fd].getState() == HttpRequest::ERROR)
 	{
 		return; // ignore all incoming data
 	}
@@ -237,7 +237,7 @@ void	Server::read_data_from_socket(int i)
 			http_req[sender_fd].setStatusCode(431);
 			http_req[sender_fd].setState(HttpRequest::ERROR);
 		}
-		//if (http_req[sender_fd].getState() != HttpRequest::ERROR)
+		if (http_req[sender_fd].getState() != HttpRequest::ERROR)
 			fsm(sender_fd); // in fsm get req with http_req[sender_fd]
 		std::cout <<http_req[sender_fd].getBuffer().size() << " MAX\n";
 		
@@ -318,17 +318,18 @@ void Server::write_data_to_socket(int i)
         if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return;
         // Handle actual error (close connection)
-    	return;
+    	cleanup_client(i, fd); 
+		return;
     }
 	// reset the value of header size,
 	//req.setHeaderSize(0);
 	if (req.shouldClose)
 	{
-		close(fd);
-		del_from_poll_fds(i);
-		http_req.erase(fd);
-		//req.resetForNextRequest();
-        //req.setState(HttpRequest::REQ_LINE);
+		set_poll_events(fd, POLLIN);// 
+		req.resetForNextRequest();
+        req.setState(HttpRequest::REQ_LINE);
+		cleanup_client(i, fd);
+		std::cout << fd << " prepare to READ after error accured\n"; 
 		return;
 	}
 
@@ -340,14 +341,13 @@ void Server::write_data_to_socket(int i)
         req.sendOffset = 0;
 
         // Disable POLLOUT so we don't keep getting triggered
+		std::cout << fd << " prepare to READ after send occured\n";
         set_poll_events(fd, POLLIN); 
 
         if (req.getHeader()["Connection"] == "close")
 		{
             // Cleanup and close
-			close(fd);                 // TCP layer
-			del_from_poll_fds(i);             // event layer
-			http_req.erase(fd);        // HTTP state cleanup
+			cleanup_client(i, fd);
 			req.setState(HttpRequest::REQ_LINE);
 			return;
         }
@@ -387,4 +387,9 @@ void Server::set_poll_events(int fd, short events)
         }
     }
 }
-
+void Server::cleanup_client(int index, int fd)
+{
+    close(fd);
+    http_req.erase(fd);
+    del_from_poll_fds(index);
+}

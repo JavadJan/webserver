@@ -34,6 +34,12 @@ HttpRequest& HttpRequest::operator=(const HttpRequest &other)
 		this->conten_len = other.conten_len;
 
 		this->recvBuffer = other.recvBuffer;
+
+		this->header_size = other.header_size;
+		this->header_done = other.header_done;
+
+		this->sendBuffer = other.sendBuffer;
+		this->sendOffset = other.sendOffset;
 	}
 	return (*this);
 }
@@ -51,7 +57,12 @@ void HttpRequest::resetForNextRequest()
     state = REQ_LINE;
 	body.clear();
 	conten_len = 0;
+
 	shouldClose = false;
+	header_size = 0;
+	sendBuffer.clear();
+	sendOffset =0;
+	statusCode = 0;
 }
 
 void HttpRequest::eraseBuffer(size_t start, size_t end)
@@ -200,6 +211,10 @@ void HttpRequest::setContentLen(size_t len) {
 
 
 
+
+/* ----------------------------- */
+/* 			operator			 */
+/* ----------------------------- */
 std::ostream& operator<<(std::ostream& out,const HttpRequest& http) {    // Request line
     out << http.getMethod() << " " << http.getPath() << " " << http.getProtocol() << "\n";
 
@@ -217,3 +232,4 @@ std::ostream& operator<<(std::ostream& out,const HttpRequest& http) {    // Requ
 
     return out;
 }
+

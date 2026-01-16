@@ -65,6 +65,7 @@ class Server{
 		void write_data_to_socket(int i);
 		void set_poll_events(int fd, short events);
 		int create_socket_bind();
+		void cleanup_client(int index, int fd);
 		
 		/* state machine function */
 		bool validateRequestLine(int fd);
@@ -74,16 +75,16 @@ class Server{
 		void parseHeader(std::string buf, int sock_fd);
 		void fsm(int sock_fd); // control strea string from TCP
 		/* in each state I remove after complition STATE */
-		public:
-			Server(std::vector<struct Config> serversConfig);
-			~Server();
-			void setServerConfig(Config conf);
+	public:
+		Server(std::vector<struct Config> serversConfig);
+		~Server();
+		void setServerConfig(Config conf);
 
-			void run();
-			class ExceptionServer: public std::exception{
-				public:
-					const char *what() const throw();
-			};
+		void run();
+		class ExceptionServer: public std::exception{
+			public:
+				const char *what() const throw();
+		};
 };
 
 
