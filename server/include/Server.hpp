@@ -70,6 +70,7 @@ class Server{
 		/* state machine function */
 		bool validateRequestLine(int fd);
 		bool validateHeaders(int fd);
+		bool validateBody(int fd);
 		void consume(size_t start, size_t end, int sock_fd);
 		void parseRequestLine(std::string buf, int sock_fd);
 		void parseHeader(std::string buf, int sock_fd);

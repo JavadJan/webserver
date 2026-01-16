@@ -1,14 +1,16 @@
 #include "../include/HttpRequest.hpp"
 
 HttpRequest::HttpRequest()
-: state(REQ_LINE), 
-conten_len(0), 
+:sendBuffer() , sendOffset(0),
+shouldClose(false) , header_done(false),
+state(REQ_LINE),
+recvBuffer(),
+method() , path() , protocol() , sock_fd_cleint(-1) , header() , conten_len(0) , body(),
+server(NULL),
 connection_close(false), 
 statusCode(0),
 header_size(0)
 {
-	header_done = false;
-	shouldClose = false;
 	std::cout << "default constructor called" << state << std::endl;
 }
 HttpRequest::~HttpRequest()
@@ -18,33 +20,81 @@ HttpRequest::HttpRequest(const HttpRequest &other)
 {
 	*this = other;
 }
+//HttpRequest& HttpRequest::operator=(const HttpRequest &other)
+//{
+//	if (this != &other)
+//	{
+//		this->method = other.method;
+//		this->path = other.path;
+//		this->protocol = other.protocol;
+		
+//		this->header = other.header; // 
+		
+//		this->body = other.body;
+//		this->state = other.state;
+
+//		this->conten_len = other.conten_len;
+
+//		this->recvBuffer = other.recvBuffer;
+
+//		this->header_size = other.header_size;
+//		this->header_done = other.header_done;
+
+//		this->sendBuffer = other.sendBuffer;
+//		this->sendOffset = other.sendOffset;
+//	}
+//	return (*this);
+//}
+
 HttpRequest& HttpRequest::operator=(const HttpRequest &other)
 {
-	if (this != &other)
-	{
-		this->method = other.method;
-		this->path = other.path;
-		this->protocol = other.protocol;
-		
-		this->header = other.header; // 
-		
-		this->body = other.body;
-		this->state = other.state;
+    if (this != &other)
+    {
+        this->sendBuffer       = other.sendBuffer;
+        this->sendOffset       = other.sendOffset;
 
-		this->conten_len = other.conten_len;
+        this->state            = other.state;
+        this->recvBuffer       = other.recvBuffer;
 
-		this->recvBuffer = other.recvBuffer;
+        this->method           = other.method;
+        this->path             = other.path;
+        this->protocol         = other.protocol;
 
-		this->header_size = other.header_size;
-		this->header_done = other.header_done;
+        this->sock_fd_cleint   = other.sock_fd_cleint;
+        this->header           = other.header;
+        this->conten_len       = other.conten_len;
+        this->body             = other.body;
 
-		this->sendBuffer = other.sendBuffer;
-		this->sendOffset = other.sendOffset;
-	}
-	return (*this);
+        this->server           = other.server;
+        this->connection_close = other.connection_close;
+        this->statusCode       = other.statusCode;
+        this->header_size      = other.header_size;
+        this->shouldClose      = other.shouldClose;
+        this->header_done      = other.header_done;
+    }
+    return *this;
 }
 
 
+//void HttpRequest::resetForNextRequest()
+//{
+//    path.clear();
+//    header.clear();
+//    method.clear();
+//    recvBuffer.clear();
+//    protocol.clear();
+
+//    connection_close = false; // reset default
+//    state = REQ_LINE;
+//	body.clear();
+//	conten_len = 0;
+
+//	shouldClose = false;
+//	header_size = 0;
+//	sendBuffer.clear();
+//	sendOffset =0;
+//	statusCode = 0;
+//}
 void HttpRequest::resetForNextRequest()
 {
     path.clear();
@@ -53,17 +103,19 @@ void HttpRequest::resetForNextRequest()
     recvBuffer.clear();
     protocol.clear();
 
-    connection_close = false; // reset default
+    connection_close = false;
     state = REQ_LINE;
-	body.clear();
-	conten_len = 0;
+    body.clear();
+    conten_len = 0;
 
-	shouldClose = false;
-	header_size = 0;
-	sendBuffer.clear();
-	sendOffset =0;
-	statusCode = 0;
+    shouldClose = false;
+    header_size = 0;
+    sendBuffer.clear();
+    sendOffset = 0;
+    statusCode = 0;
+    header_done = false;   // IMPORTANT
 }
+
 
 void HttpRequest::eraseBuffer(size_t start, size_t end)
 {

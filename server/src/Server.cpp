@@ -243,12 +243,10 @@ void	Server::read_data_from_socket(int i)
 		
 		http_req[sender_fd].setClientSocket(sender_fd); // client<->server
 
-		//std::cout << "state: " << clientState[sender_fd] << std::endl;
 		if (http_req[sender_fd].getState() == HttpRequest::DONE 
 			|| http_req[sender_fd].getState() == HttpRequest::ERROR)
 		{
 			// when recv() finished enabple POLLOUT to send()
-			
 			std::cout << "\n\nHTTP REQ AFTER FSM: " << http_req[sender_fd].getStatusCode() << std::endl;
 			/* create an object from response handler */
 			ResponseHandler res;
@@ -260,7 +258,7 @@ void	Server::read_data_from_socket(int i)
 			if (http_req[sender_fd].getState() == HttpRequest::ERROR)
 				res.getResponse().setHeader("Connection", "close");
 			res.finalize(http_req[sender_fd], *http_req[sender_fd].getServerConfig());
-			//res.getResponse().setStatus(200); // set status code
+			
 			response = res.getResponse().toString(); // make foramt http res to string
 			std::cout << "response: " << response << std::endl;
 

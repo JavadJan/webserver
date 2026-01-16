@@ -511,3 +511,14 @@ void Server::fsm(int sock_fd)
 	}
 	
 }
+
+bool Server::validateBody(int fd)
+{
+	HttpRequest &req = http_req[fd];
+	if (req.getBody().size() < req.getContetnLen())
+	{
+		// set status code;
+		req.shouldClose = true;
+	}
+	return true;
+}
