@@ -274,27 +274,28 @@ void	Server::read_data_from_socket(int i)
 	}
 	else
 	{
-		// if resive return -1 and set errno as EAGAIN, there is nothing to read
 		if (bytes_read == 0)
 		{
-			// Connection closed by client
-			close(sender_fd);
-			http_req.erase(sender_fd);
-			del_from_poll_fds(i); 
-			return ;
-		} 
-		//else
-		//{
-		// there is still value in kernell buffer
-			if (errno != EAGAIN && errno != EWOULDBLOCK) {
-				return ;
-			}
-			std::cerr << "RECV " << strerror(errno) << std::endl;
+			// Client closed connection
 			close(sender_fd);
 			http_req.erase(sender_fd);
 			del_from_poll_fds(i);
-			return ;
-		//}
+			return;
+		}
+
+		// recv() returned -1
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+		{
+			// No data available now — this is normal for nonblocking sockets
+			return;
+		}
+
+		// Real error
+		std::cerr << "RECV " << strerror(errno) << std::endl;
+		close(sender_fd);
+		http_req.erase(sender_fd);
+		del_from_poll_fds(i);
+		return;
 	}
 }
 
