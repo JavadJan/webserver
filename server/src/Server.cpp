@@ -10,7 +10,8 @@
 
 Server::Server(std::vector<struct Config> serversConfig)
 : servers(serversConfig),
-server_fd(-1)
+server_fd(-1),
+poll_start_index(0)
 {
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;        // IPv4 or IPv6
@@ -137,21 +138,21 @@ void Server::run()
 			// None of the sockets are ready
 			std::cout << "[Server on port: " ;
 			for (size_t i = 0; i < servers.size(); i++)
-				std::cout << servers[0].port << " ";
+				std::cout << servers[i].port << " ";
 			std::cout << std::endl;
 			continue ; // skip the rest of loop after this line, start again to socket
 		}
-		// Loop on our array of sockets
-		for (size_t i = 0; i < poll_fds.size(); i++)
+
+		if (poll_fds.empty())
+			continue;
+		// rotation index to prevent starvation event
+		size_t n = poll_fds.size();
+		size_t start = poll_start_index % n;
+		// watch poll_fds. poll_driven
+		//for (size_t i = 0; i < poll_fds.size(); i++)
+		for (size_t k = 0; k < n; ++k)
 		{
-			// if there was not client socket
-			//if (poll_fds[i].revents & (POLLERR | POLLHUP)) {
-			//	close(fd);
-			//	cleanup();
-			//	continue;
-			//}
-
-
+			size_t i = (start + k) % n;
 			if ((poll_fds[i].revents & POLLIN)) // POLLIN, readiness
 			{
 				// The socket is ready for reading!
@@ -173,6 +174,8 @@ void Server::run()
 				write_data_to_socket(i);
 			}
 		}
+		// next time i start from the index
+		poll_start_index = (poll_start_index + 1) % (poll_fds.empty() ? 1 : poll_fds.size());
 	}
 }
 
@@ -252,13 +255,14 @@ void	Server::read_data_from_socket(int i)
 			ResponseHandler res;
 			std::string response;
 			//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
-			if (http_req[sender_fd].getStatusCode() < 400)
+			//if (http_req[sender_fd].getStatusCode() < 400)
+			if (http_req[sender_fd].getState() != HttpRequest::ERROR)
 				res.controller(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
 			
 			if (http_req[sender_fd].getState() == HttpRequest::ERROR)
 				res.getResponse().setHeader("Connection", "close");
 			res.finalize(http_req[sender_fd], *http_req[sender_fd].getServerConfig());
-			
+
 			response = res.getResponse().toString(); // make foramt http res to string
 			std::cout << "response: " << response << std::endl;
 

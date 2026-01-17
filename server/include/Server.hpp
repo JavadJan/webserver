@@ -57,6 +57,9 @@ class Server{
 		std::vector<pollfd> poll_fds;
 		int poll_count; 
 
+		// to prevent statvation
+		size_t poll_start_index;
+
 		/* private function */
 		void accept_new_connection(int listen_fd);
 		void add_to_poll_fds(int new_fd);
@@ -70,7 +73,7 @@ class Server{
 		/* state machine function */
 		bool validateRequestLine(int fd);
 		bool validateHeaders(int fd);
-		bool validateBody(int fd);
+		bool validateBody(int fd,const std::string &body);
 		void consume(size_t start, size_t end, int sock_fd);
 		void parseRequestLine(std::string buf, int sock_fd);
 		void parseHeader(std::string buf, int sock_fd);

@@ -94,6 +94,39 @@ static std::string resolvePath(const std::string &req_path, const Location& loca
     return root;
 }
 
+//static std::string resolvePath(const std::string &req_path, const Location &location)
+//{
+//    // 1. Get root
+//    std::map<std::string, std::vector<std::string> >::const_iterator it =
+//        location.directive.find("root");
+
+//    if (it == location.directive.end() || it->second.empty())
+//        return "";
+
+//    std::string root = it->second[0];
+
+//    // Ensure root ends with '/'
+//    if (!root.empty() && root[root.size() - 1] != '/')
+//        root += "/";
+
+//    // 2. Remove the location prefix from the request path
+//    std::string relative;
+
+//    if (req_path.find(location.path) == 0)
+//        relative = req_path.substr(location.path.size());
+//    else
+//        relative = req_path; // fallback
+
+//    // Remove leading slash from relative
+//    if (!relative.empty() && relative[0] == '/')
+//        relative.erase(0, 1);
+
+//    // 3. Build final path
+//    std::string full = root + relative;
+
+//    return full;
+//}
+
 
 bool ResponseHandler::path_exist(std::string full_path)
 {
@@ -120,6 +153,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	{
 		res.setStatusCode(404);
 		std::cout << "send: 404\n";
+		return ;
 	}
 
 	
@@ -128,6 +162,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	std::cout << "full path: " << full_path << std::endl;
 	if (!path_exist(full_path)) // ./tmp/www/form does not exist
 	{
+		std::cout << "PATH does not exist: " << res.getStatusCode();
 		res.setStatusCode(404);
 		return;
 	}
@@ -138,33 +173,28 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		std::cout << "send:	respond 405 " <<std::endl;
 		return;
 	}
-		//router.get("/", (req, res)=>{
-		//	res.send("hello")
-		//})
-		//std::cout << "allowed method: " << location.directive["allow_methods"].at(0) << std::endl;
+
 	if (req.getMethod() == "GET")
 	{
 		handleGet();
+		return ;
 	}
 	else if (req.getMethod() == "POST")
+	{
 		handlePost();
+		return ;	
+	}
 	else if (req.getMethod() == "DELETE")
+	{
 		handleDelete();
+		return ;	
+	}
 	else 
 	{
 		res.setStatusCode(501);
 		std::cout << "respond 501\n";
-
+		return ;
 	}	
-
-	
-
-	//adjust path
-
-	//send(ResponseHandler, sock_fd)
-	(void)req;
-	std::cout << "in controller: " << server.port << std::endl;
-
 }
 
 
@@ -256,9 +286,11 @@ static std::string intToString(int value)
 void ResponseHandler::renderErrorPage(const HttpRequest &req, const Config& server)
 {
 	// 
-    int status = req.getStatusCode();
-	res.setStatusCode(req.getStatusCode());
-	std::cout << "status code : " << status << std::endl;
+    int code = req.getStatusCode();
+	if (code != 0)
+		res.setStatusCode(code);
+
+	std::cout << "status code renderErrorPage: " << res.getStatusCode() << std::endl;
 	(void)req;
     std::map<std::string, std::vector<std::string> >::const_iterator it =
         server.directives.find("error_page");
@@ -266,7 +298,7 @@ void ResponseHandler::renderErrorPage(const HttpRequest &req, const Config& serv
 	// did not find error page in server config
     if (it == server.directives.end())
     {
-        res.setBody("Error " + intToString(status));
+        res.setBody("Error " + intToString(res.getStatusCode()));
         return;
     }
 
@@ -274,7 +306,7 @@ void ResponseHandler::renderErrorPage(const HttpRequest &req, const Config& serv
     std::ifstream file(it->second[0].c_str());
     if (!file)
     {
-        res.setBody("Error " + intToString(status));
+        res.setBody("Error " + intToString(res.getStatusCode()));
         return;
     }
 
@@ -282,8 +314,8 @@ void ResponseHandler::renderErrorPage(const HttpRequest &req, const Config& serv
     buf << file.rdbuf();
 
     std::string body = buf.str();
-    replaceAll(body, "{error}", intToString(status));
-    replaceAll(body, "{text}", res.reasonPhrase(status));
+    replaceAll(body, "{error}", intToString(res.getStatusCode()));
+    replaceAll(body, "{text}", res.reasonPhrase(res.getStatusCode()));
 
     res.setBody(body);
 }
