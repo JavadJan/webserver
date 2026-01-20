@@ -41,6 +41,7 @@ class HttpRequest
 		//Config * getServerConfig();
 		const Config* getServerConfig() const;
 		int	getStatusCode() const;
+		std::string getContentType() const;
 		/* stetter */
 		void setMethod(const std::string& _method);
 		void setPath(const std::string& path);
@@ -55,6 +56,8 @@ class HttpRequest
 		void setHeaderSize(size_t h_size);
 		void setCloseConnection(bool cstate);
 		void setState(enum STATE state);
+		void setContentType(std::string content);
+
 		
 		
 		void clearBuffer();
@@ -76,6 +79,7 @@ class HttpRequest
 		// header
 		std::map<std::string, std::string>	header; // header["host"] : "127.0.0.1:8080"
 		size_t conten_len;
+		std::string contentType;
 		std::string	body;
 		
 		struct Config* server;

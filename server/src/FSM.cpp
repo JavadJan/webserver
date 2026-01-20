@@ -2,7 +2,8 @@
 #include "../include/HttpRequest.hpp"
 #include "../include/Config.hpp"
 
-/*	------------------ INFO ABOUT FUNCION HAS BEEN USED -----------------------
+/*	------------------ CONTETN: -----------------------
+
 	******** parser the request line+ => <METHOD> <PATH> <HTPP VERSION>
 	static int error_to_code(const std::string err);
 	void Server::consume(size_t start, size_t end, int sock_fd);
@@ -192,6 +193,16 @@ void Server::parseRequestLine(std::string buf, int sock_fd)
     http_req[sock_fd].setProtocol(protocol); // error 505
 }
 
+static std::string to_lower(std::string key)
+{
+	std::string key_to_lower;
+	for (size_t i = 0; i < key.size(); i++)
+	{
+		key_to_lower += std::tolower(key[i]);
+	}
+	return key_to_lower;
+}
+
 void Server::parseHeader(std::string buf, int sock_fd)
 {
 	std::istringstream header_stream(buf);
@@ -225,6 +236,10 @@ void Server::parseHeader(std::string buf, int sock_fd)
 			http_req[sock_fd].setState(HttpRequest::ERROR); 
             return ;
 		}
+		key = to_lower(key);
+		if (key == "content-type")
+			http_req[sock_fd].setContentType(value);
+		
 		http_req[sock_fd].setHeader(key, value);
 	}
 }
@@ -517,7 +532,7 @@ void Server::fsm(int sock_fd)
             // Decide next state based on method + Content-Length
             const std::map<std::string, std::string> &headers = req.getHeader();
             std::map<std::string, std::string>::const_iterator it =
-                headers.find("Content-Length");
+                headers.find("content-length"); // after lower case
 
             if (it != headers.end())
             {
@@ -662,7 +677,7 @@ bool Server::validateHeaders(int fd)
     }
 
     // 2. Reject Transfer-Encoding (we don't support chunked)
-    if (headers.count("Transfer-Encoding"))
+    if (headers.count("transfer-encoding"))
     {
         req.setStatusCode(501); // Not implemented
         return false;
@@ -670,7 +685,7 @@ bool Server::validateHeaders(int fd)
 
     // 3. Content-Length validation
     std::map<std::string, std::string>::const_iterator it =
-        headers.find("Content-Length");
+        headers.find("content-length");
 	
     // POST must have Content-Length
     if (req.getMethod() == "POST")
@@ -808,7 +823,7 @@ bool Server::validateBody(int fd, const std::string &body)
     // 5. POST must have Content-Type
     if (req.getMethod() == "POST")
     {
-        if (req.getHeader().count("Content-Type") == 0)
+        if (req.getHeader().count("content-lype") == 0)
         {
             req.setStatusCode(400);
             return false;

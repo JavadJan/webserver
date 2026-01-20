@@ -9,6 +9,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <cerrno>       // for errno, std::strerror
+#include <cstring>
 
 #include "./Response.hpp" // for response to
 
@@ -33,13 +36,14 @@ class ResponseHandler
 	void setOffset(size_t offset);
 	// method controller
 	void controller(const HttpRequest &req,	struct Config servers);
+	bool path_exist(std::string full_path);
 	void finalize(const HttpRequest &req, const Config& servers);
+	std::vector<char*> buildCGIEnv(const HttpRequest &req, const Config& servers);
 	void handleGet();
 	void handlePost(const HttpRequest &req, const Config &server);
 	void handleDelete();
 	void handleCGI(const HttpRequest &req, const Config &server);
 	void handleUpload(const HttpRequest &req, const Config &server);
-	bool path_exist(std::string full_path);
 	bool isCGI();
 	class ResException: public std::exception{
 		public:

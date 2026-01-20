@@ -125,6 +125,11 @@ void HttpRequest::eraseBuffer(size_t start, size_t end)
 //--------------------------#
 //		getter				#
 //--------------------------#
+std::string HttpRequest::getContentType() const
+{
+	return this->contentType;
+}
+
 int HttpRequest::getStatusCode() const
 {
 	return this->statusCode;
@@ -185,6 +190,10 @@ void HttpRequest::clearBuffer(){recvBuffer.clear();}
 //--------------------------#
 //		setter				#
 //--------------------------#
+void HttpRequest::setContentType(std::string content)
+{
+	this->contentType = content;
+}
 void HttpRequest::setServerConfig(Config *server)
 {
 	this->server = server;
