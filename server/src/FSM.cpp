@@ -524,7 +524,7 @@ void Server::fsm(int sock_fd)
                 long len = atoll(it->second.c_str());
                 req.setContentLen(static_cast<size_t>(len));
 
-                if (req.getMethod() == "POST" ||
+                if (req.getMethod() == "POST" || 
                     (req.getMethod() == "DELETE" && len > 0))
                 {
                     req.setState(HttpRequest::BODY);
@@ -671,7 +671,7 @@ bool Server::validateHeaders(int fd)
     // 3. Content-Length validation
     std::map<std::string, std::string>::const_iterator it =
         headers.find("Content-Length");
-
+	
     // POST must have Content-Length
     if (req.getMethod() == "POST")
     {

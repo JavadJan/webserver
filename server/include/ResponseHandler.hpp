@@ -16,13 +16,16 @@ class ResponseHandler
 {
   private:
 	Response res;
-	
+	struct Location* loc;
 	std::string full_path; // helper to track macth: server|location|path|mathod
   public:
 	ResponseHandler(); // response to this request, this req has the socket fd
 	~ResponseHandler();
 	ResponseHandler(const ResponseHandler &res);
 	ResponseHandler &operator=(const ResponseHandler &other);
+
+	void setLocation(Location* location); // setter for loc
+	Location* getLocation()const; // setter for loc
 	// getter
 	Response& getResponse();
 
@@ -32,9 +35,12 @@ class ResponseHandler
 	void controller(const HttpRequest &req,	struct Config servers);
 	void finalize(const HttpRequest &req, const Config& servers);
 	void handleGet();
-	void handlePost();
+	void handlePost(const HttpRequest &req, const Config &server);
 	void handleDelete();
+	void handleCGI(const HttpRequest &req, const Config &server);
+	void handleUpload(const HttpRequest &req, const Config &server);
 	bool path_exist(std::string full_path);
+	bool isCGI();
 	class ResException: public std::exception{
 		public:
 		const char* what() const throw();

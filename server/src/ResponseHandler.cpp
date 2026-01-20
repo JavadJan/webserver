@@ -23,6 +23,15 @@ ResponseHandler &ResponseHandler::operator=(const ResponseHandler &other)
 	return (*this);
 }
 
+void ResponseHandler::setLocation(Location *location)
+{
+	this->loc = location;
+}
+Location* ResponseHandler::getLocation() const
+{
+	return this->loc;
+}
+
 //------------------------------#
 //			methods, main		#
 //------------------------------#
@@ -94,40 +103,6 @@ static std::string resolvePath(const std::string &req_path, const Location& loca
     return root;
 }
 
-//static std::string resolvePath(const std::string &req_path, const Location &location)
-//{
-//    // 1. Get root
-//    std::map<std::string, std::vector<std::string> >::const_iterator it =
-//        location.directive.find("root");
-
-//    if (it == location.directive.end() || it->second.empty())
-//        return "";
-
-//    std::string root = it->second[0];
-
-//    // Ensure root ends with '/'
-//    if (!root.empty() && root[root.size() - 1] != '/')
-//        root += "/";
-
-//    // 2. Remove the location prefix from the request path
-//    std::string relative;
-
-//    if (req_path.find(location.path) == 0)
-//        relative = req_path.substr(location.path.size());
-//    else
-//        relative = req_path; // fallback
-
-//    // Remove leading slash from relative
-//    if (!relative.empty() && relative[0] == '/')
-//        relative.erase(0, 1);
-
-//    // 3. Build final path
-//    std::string full = root + relative;
-
-//    return full;
-//}
-
-
 bool ResponseHandler::path_exist(std::string full_path)
 {
 	struct stat st;
@@ -155,17 +130,12 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		std::cout << "send: 404\n";
 		return ;
 	}
-
+	
+	this->setLocation(&location);
 	
 		//full_path = resolvePath(req.getPath(), location); // 
 	full_path = resolvePath(req.getPath(), location);
-	std::cout << "full path: " << full_path << std::endl;
-	if (!path_exist(full_path)) // ./tmp/www/form does not exist
-	{
-		std::cout << "PATH does not exist: " << res.getStatusCode();
-		res.setStatusCode(404);
-		return;
-	}
+	
 
 	if (!methodAllowed(location, req.getMethod()))
 	{
@@ -176,12 +146,13 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 
 	if (req.getMethod() == "GET")
 	{
+		
 		handleGet();
 		return ;
 	}
 	else if (req.getMethod() == "POST")
 	{
-		handlePost();
+		handlePost(req, server);
 		return ;	
 	}
 	else if (req.getMethod() == "DELETE")
@@ -202,6 +173,13 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 void ResponseHandler::handleGet()
 {
 	struct stat st;
+	std::cout << "full path: " << full_path << std::endl;
+	if (!path_exist(full_path)) // ./tmp/www/form does not exist
+	{
+		std::cout << "PATH does not exist: " << res.getStatusCode();
+		res.setStatusCode(404);
+		return;
+	}
 	if (stat(full_path.c_str(), &st) == -1) // if not found
 	{
 		res.setStatusCode(404);
@@ -243,10 +221,98 @@ void ResponseHandler::handleDelete()
 {
 
 }
-void ResponseHandler::handlePost()
+
+static bool uploadEnabled(struct Location *loc)
 {
+	std::map<std::string, std::vector<std::string> >::const_iterator obj = loc->directive.find("allow_upload");
+	if (obj->second[0] == "on")
+	{
+		return true;
+	}	
+	//confServer.locations.
+	return false;
+}
+
+//static long long maxBodySize(struct Config serverConf)
+//{
+//	long long body_size = atoll(serverConf.directives["max_body_size"][0].c_str());
+//	return body_size;
+//}
+
+//static std::string contetnType(HttpRequest req)
+//{
+//	std::string multiPart = req.getHeader()["Content-Type"];
+//	return multiPart;
+//}
+
+bool ResponseHandler::isCGI()
+{
+	// extract extention *.*
+	size_t dot = full_path.find(".");
+	if (dot == std::string::npos)
+		return false;
+
+	std::string ext = full_path.substr(dot); // .py and .php
+
+	// the server block has configured for cgi at all?
+	std::map<std::string, std::vector<std::string> >::const_iterator it = this->loc->directive.find("cgi");
+	if (it == this->loc->directive.end())
+		return false;
+	
+	// find the specific extention cgi e.g., .py or .php
+	for (size_t i = 0 ; i < it->second.size(); ++i)
+	{
+		if (it->second[i] == ext)
+			return true;
+	}
+	return false;
+}
+
+
+void ResponseHandler::handleUpload(const HttpRequest &req, const Config &server)
+{
+	(void)req;
+	(void)server;
 
 }
+void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
+{
+	(void)req;
+	(void)server;
+
+}
+
+void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
+{
+	(void)server;
+	(void)req;
+    // CGI?
+    if (isCGI())
+    {
+        handleCGI(req, server);
+		std::cout << "server side is CGI\n";
+        return;
+    }
+
+    // Upload?
+    if (uploadEnabled(this->loc))
+    {
+        handleUpload(req, server);
+        return;
+    }
+	
+    // Static file → POST not allowed
+    struct stat st;
+    if (stat(full_path.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+    {
+        res.setStatusCode(405);
+        return;
+    }
+
+    // 4. Not found
+    res.setStatusCode(404);
+}
+
 void ResponseHandler::finalize(const HttpRequest& req, const Config& server)
 {
     if (res.getStatusCode() < 400)

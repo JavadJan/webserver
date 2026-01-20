@@ -45,11 +45,14 @@ std::string Response::reasonPhrase(int code)
     switch (code)
     {
         case 200: return "OK";
+        case 201: return "Created";
+        case 204: return "No Content";
+		case 400: return "Bad Request!";
         case 404: return "Not Found";
         case 403: return "Forbidden";
         case 405: return "Method Not Allowed";
+        case 411: return "Length Required";
         case 501: return "Not Implemented";
-		case 400: return "Bad Request!";
 		case 413: return "Payload Too Large";
 		case 431: return "Request Header Fields Too Large";
         default:  return "Error";

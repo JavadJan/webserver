@@ -7,6 +7,9 @@ Host: localhost
 
 3. curl -v http://127.0.0.1:4243/%2e%2e/%2e%2e/a
 
+4. curl -v -X POST http://127.0.0.1:4244/ -d ""
+
+
 // ERROR limit header size: 
 4. curl -v -H "$(head -c 17000 < /dev/zero | tr '\0' 'A')" http://localhost:4243/
 

@@ -5,10 +5,33 @@ Location::Location():empty(true)
 
 }
 
+Location::~Location()
+{
+
+}
+
+Location::Location(const struct Location& other)
+{
+	*this = other;
+}
+
+Location& Location::operator=(const struct Location& other)
+{
+	if (this!= &other)
+	{
+		this->path = other.path;
+		this->directive = other.directive;
+		this->empty = other.empty;
+	}
+	return *this;
+}
+
 Config::Config():empty(true)
 {
 
 }
+
+
 
 static std::string trim(std::string s)
 {

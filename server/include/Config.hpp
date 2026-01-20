@@ -33,6 +33,9 @@ struct	Location
 	std::map<std::string, std::vector<std::string> > directive;
 	bool empty;
 	Location();
+	~Location();
+	Location(const struct Location& other);
+	Location& operator=(const struct Location& other); 
 };
 
 struct	Config
