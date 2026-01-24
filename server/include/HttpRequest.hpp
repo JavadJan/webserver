@@ -38,11 +38,13 @@ class HttpRequest
 		int getCleintSocket () const;
 		std::string getPortServer() const;
 		bool getConnectionState();
-		//Config * getServerConfig();
 		const Config* getServerConfig() const;
 		int	getStatusCode() const;
-		std::string getContentType() const;
+		const std::string& getContentType() const;
+		const std::string& getQuery() const;
+		//Config * getServerConfig();
 		/* stetter */
+		void setQuery(const std::string& _query);
 		void setMethod(const std::string& _method);
 		void setPath(const std::string& path);
 		void setProtocol(const std::string& prot);
@@ -74,6 +76,7 @@ class HttpRequest
 		// request line; first line
 		std::string method;
 		std::string path;
+		std::string query;
 		std::string protocol;
 		int sock_fd_cleint;
 		// header
@@ -94,16 +97,3 @@ std::ostream& operator<<(std::ostream& out, const HttpRequest& http);
 
 
 #endif
-
-
-//curl -v -X POST -d "name=Bob&age=22" http://127.0.0.1:4545/form
-//=>
-//POST /form HTTP/1.1
-//Host: 127.0.0.1:4545
-//User-Agent: curl/8.5.0
-//Accept: */*
-//Content-Length: 15
-//Content-Type: application/x-www-form-urlencoded
-
-//name=Bob&age=22
-

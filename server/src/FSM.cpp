@@ -188,7 +188,24 @@ void Server::parseRequestLine(std::string buf, int sock_fd)
 	}
 	std::string decoded  = urlDecode(path);
 	path = normalPath(decoded);
-    http_req[sock_fd].setPath(path); // error 400
+	std::string raw_path = path;
+
+	size_t pos = raw_path.find('?');
+
+	if (pos != std::string::npos)
+	{
+		std::string p = raw_path.substr(0, pos);
+		std::string q = raw_path.substr(pos + 1);
+
+		http_req[sock_fd].setPath(p);
+		http_req[sock_fd].setQuery(q);
+	}
+	else
+	{
+		http_req[sock_fd].setPath(raw_path);
+		http_req[sock_fd].setQuery("");
+	}
+    //http_req[sock_fd].setPath(path); // error 400
 
     http_req[sock_fd].setProtocol(protocol); // error 505
 }
@@ -243,6 +260,421 @@ void Server::parseHeader(std::string buf, int sock_fd)
 		http_req[sock_fd].setHeader(key, value);
 	}
 }
+
+
+
+void Server::fsm(int sock_fd)
+{
+    std::cout << "arived to fsm [STATE]: " << http_req[sock_fd].getState() << std::endl;
+
+    while (true)
+    {
+        HttpRequest &req = http_req[sock_fd];
+
+        if (req.getState() == HttpRequest::DONE ||
+            req.getState() == HttpRequest::ERROR)
+            return;
+
+        switch (req.getState())
+        {
+        case HttpRequest::REQ_LINE:
+        {
+            const std::string &buf = req.getBuffer();
+
+            size_t pos = buf.find("\r\n");
+            if (pos == std::string::npos)
+                pos = buf.find("\n");
+
+            if (pos == std::string::npos)
+                return; // need more data
+
+            std::string req_line = buf.substr(0, pos);
+            std::cout << "request line: " << req_line << std::endl;
+
+            try
+            {
+                parseRequestLine(req_line, sock_fd);
+            }
+            catch (const std::exception &e)
+            {
+                std::string s = e.what();
+                std::cout << "🚨🚨🚨 ERROR in parse request line: "
+                          << "method: " << req.getMethod()
+                          << ", path: " << req.getPath()
+                          << ", protocol: " << req.getProtocol() << std::endl;
+
+                int code = error_to_code(s);
+                if (code < 0) code = 400;
+                req.setStatusCode(code);
+                req.setState(HttpRequest::ERROR);
+                return;
+            }
+
+            size_t newline_len = (buf[pos] == '\r') ? 2 : 1;
+            consume(0, pos + newline_len, sock_fd);
+
+            if (!validateRequestLine(sock_fd))
+            {
+                req.setState(HttpRequest::ERROR);
+                std::cout << "🚨🚨🚨 ERROR in validation request line "
+                          << req.getMethod() << " "
+                          << req.getPath() << " "
+                          << req.getProtocol() << std::endl;
+                return;
+            }
+
+            req.setState(HttpRequest::HEADER);
+            std::cout << "[REQ_LINE STATE] has completed, Transit to HEADER\n\n";
+            continue;
+        }
+
+        case HttpRequest::HEADER:
+        {
+            const std::string &buf = req.getBuffer();
+            std::cout << req.getHeaderSize() << "✴️✴️✴️ HEADER STATE ✴️✴️✴️\n";
+
+            if (buf.size() > MAX_HEADER_SIZE)
+            {
+                req.setStatusCode(431);
+                req.setState(HttpRequest::ERROR);
+                std::cout << "🚨🚨🚨 ERROR in header size " << buf.size() << std::endl;
+                return;
+            }
+
+            size_t header_end = buf.find("\r\n\r\n");
+            size_t delim = 4;
+
+            if (header_end == std::string::npos)
+            {
+                header_end = buf.find("\n\n");
+                delim = 2;
+            }
+
+            if (header_end == std::string::npos)
+                return; // need more data
+
+            std::string header_block = buf.substr(0, header_end);
+            parseHeader(header_block, sock_fd);
+
+            if (req.getState() == HttpRequest::ERROR)
+                return;
+
+            if (!validateHeaders(sock_fd))
+            {
+                req.setState(HttpRequest::ERROR);
+                std::cout << "🚨🚨🚨 ERROR: validation header "
+                          << req.getStatusCode() << std::endl;
+                return;
+            }
+
+            // Decide next state based on method + Content-Length
+            const std::map<std::string, std::string> &headers = req.getHeader();
+            std::map<std::string, std::string>::const_iterator it =
+                headers.find("content-length"); // after lower case
+
+            if (it != headers.end())
+            {
+                long len = atoll(it->second.c_str());
+                req.setContentLen(static_cast<size_t>(len));
+
+                if (req.getMethod() == "POST" || 
+                    (req.getMethod() == "DELETE" && len > 0))
+                {
+                    req.setState(HttpRequest::BODY);
+                }
+                else
+                {
+                    // GET/HEAD with Content-Length > 0 already rejected in validateHeaders()
+                    req.setState(HttpRequest::DONE);
+                }
+            }
+            else
+            {
+                // No Content-Length → no body
+                req.setState(HttpRequest::DONE);
+            }
+
+            consume(0, header_end + delim, sock_fd);
+            continue;
+        }
+
+        case HttpRequest::BODY:
+        {
+            const std::string &buf = req.getBuffer();
+            size_t need = req.getContetnLen();
+			if (need == 0) // added later
+			{
+				req.setState(HttpRequest::DONE);
+				return;
+			}
+
+            if (buf.size() < need)
+                return; // wait for more
+
+            std::string body = buf.substr(0, need);
+
+            if (!validateBody(sock_fd, body))
+            {
+                req.setState(HttpRequest::ERROR);
+                req.shouldClose = true;
+                return;
+            }
+
+            req.setBody(body);
+            consume(0, need, sock_fd);
+
+            req.setState(HttpRequest::DONE);
+            return;
+        }
+
+        case HttpRequest::DONE:
+        {
+            return;
+        }
+
+        case HttpRequest::ERROR:
+        {
+            req.shouldClose = true;
+            std::cout << "🚨🚨🚨 ERROR: final state, status "
+                      << req.getStatusCode() << std::endl;
+            return;
+        }
+
+        default:
+            return;
+        }
+    }
+}
+
+
+/*------------------------------------------------------------------------------------------*/
+/*																							*/
+/*									validation												*/
+/*																							*/
+/*------------------------------------------------------------------------------------------*/
+bool Server::validateRequestLine(int fd)
+{
+	//1.  methos os case-sensitive?
+	HttpRequest &req = http_req[fd];
+    if (req.getMethod() != "GET" && req.getMethod() != "POST" && req.getMethod() != "DELETE")
+	{
+		req.setStatusCode(405); // bad request
+        return false;
+	}
+
+	//2.  both version HTTP/1.0 and HTTP/1.1
+    if (req.getProtocol() != "HTTP/1.1" && req.getProtocol() != "HTTP/1.0")
+	{
+		req.setStatusCode(505);
+        return false;
+	}
+
+	// 3. Path must start with /
+	const std::string &path = req.getPath();
+    if (path.empty() || path[0] != '/')
+	{
+		req.setStatusCode(400);
+        return false;
+	}
+
+	// 4. Reject absolute urls
+	if (path.find("://") != std::string::npos)
+	{
+		req.setStatusCode(400);
+		return false;
+	}
+
+	// 5. Reject space or controll chars
+	for (size_t i = 0; i < path.size(); i++)
+	{
+		if (path[i] <= 31 || path[i] == ' ')
+		{
+			req.setStatusCode(400);
+			return false;
+		}
+	}
+	
+	// 6. Reject too-long path
+	if (path.size() > 8192)
+	{
+		req.setStatusCode(414);
+		return false;
+	}
+    return true;
+}
+
+bool Server::validateHeaders(int fd)
+{
+    HttpRequest &req = http_req[fd];
+    const std::map<std::string, std::string> &headers = req.getHeader();
+
+    // 1. Host header required for HTTP/1.1
+    if (req.getProtocol() == "HTTP/1.1")
+    {
+        if (headers.count("host") == 0)
+        {
+            req.setStatusCode(400);
+            return false;
+        }
+    }
+
+    // 2. Reject Transfer-Encoding (we don't support chunked)
+    if (headers.count("transfer-encoding"))
+    {
+        req.setStatusCode(501); // Not implemented
+        return false;
+    }
+
+    // 3. Content-Length validation
+    std::map<std::string, std::string>::const_iterator it =
+        headers.find("content-length");
+	
+    // POST must have Content-Length
+    if (req.getMethod() == "POST")
+    {
+        if (it == headers.end())
+        {
+            req.setStatusCode(411); // Length Required
+            return false;
+        }
+    }
+
+    // GET/HEAD must not have body
+    if ((req.getMethod() == "GET" || req.getMethod() == "HEAD") &&
+        it != headers.end() &&
+        atoll(it->second.c_str()) > 0)
+    {
+        req.setStatusCode(400);
+        return false;
+    }
+
+    // DELETE: body allowed only if allow_upload on
+    if (req.getMethod() == "DELETE" &&
+        it != headers.end() &&
+        atoll(it->second.c_str()) > 0)
+    {
+        const Config *conf = req.getServerConfig();
+        bool allow_upload = false;
+
+        if (conf && conf->directives.count("allow_upload"))
+            allow_upload = true;
+
+        if (!allow_upload)
+        {
+            req.setStatusCode(400);
+            return false;
+        }
+    }
+
+    // 4. Validate Content-Length numeric
+    if (it != headers.end())
+    {
+        const std::string &cl = it->second;
+
+        // numeric only
+        if (cl.empty() || cl.find_first_not_of("0123456789") != std::string::npos)
+        {
+            req.setStatusCode(400);
+            return false;
+        }
+
+        long long body_size = atoll(cl.c_str());
+        if (body_size < 0)
+        {
+            req.setStatusCode(400);
+            return false;
+        }
+
+        // 5. Check max_body_size
+        const Config *conf = req.getServerConfig();
+        if (conf)
+        {
+            std::map<std::string, std::vector<std::string> >::const_iterator mit =
+                conf->directives.find("max_body_size");
+
+            if (mit != conf->directives.end())
+            {
+                long long max_size = atoll(mit->second[0].c_str());
+                if (body_size > max_size)
+                {
+                    req.setStatusCode(413);
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+bool Server::validateBody(int fd, const std::string &body)
+{
+    HttpRequest &req = http_req[fd];
+    size_t len = req.getContetnLen();
+
+    // 1. Length mismatch
+    if (body.size() != len)
+        return false;
+
+    // 2. Too large (config)
+    const Config* config = req.getServerConfig();
+    size_t max_body_size = 0;
+
+    if (config)
+	{
+        std::map<std::string, std::vector<std::string> >::const_iterator it =
+            config->directives.find("max_body_size");
+
+        if (it != config->directives.end() && !it->second.empty())
+            max_body_size = static_cast<size_t>(atoll(it->second[0].c_str()));
+    }
+
+    if (max_body_size > 0 && len > max_body_size)
+    {
+        req.setStatusCode(413);
+        return false;
+    }
+
+    // 3. GET/HEAD must not have a body
+    if ((req.getMethod() == "GET") && len > 0)
+    {
+        req.setStatusCode(400);
+        return false;
+    }
+
+    // 4. DELETE must not have a body unless allow_upload is on
+    if (req.getMethod() == "DELETE" && len > 0)
+    {
+        const Config* conf = req.getServerConfig();
+        bool allow_upload = false;
+
+        if (conf) {
+            std::map<std::string, std::vector<std::string> >::const_iterator it =
+                conf->directives.find("allow_upload");
+
+            if (it != conf->directives.end())
+                allow_upload = true;
+        }
+
+        if (!allow_upload) {
+            req.setStatusCode(400);
+            return false;
+        }
+    }
+
+    // 5. POST must have Content-Type
+    if (req.getMethod() == "POST")
+    {
+        if (req.getHeader().count("content-type") == 0)
+        {
+            req.setStatusCode(400);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 
 
 //void Server::fsm(int sock_fd)
@@ -424,412 +856,3 @@ void Server::parseHeader(std::string buf, int sock_fd)
 //	}
 	
 //}
-
-void Server::fsm(int sock_fd)
-{
-    std::cout << "arived to fsm [STATE]: " << http_req[sock_fd].getState() << std::endl;
-
-    while (true)
-    {
-        HttpRequest &req = http_req[sock_fd];
-
-        if (req.getState() == HttpRequest::DONE ||
-            req.getState() == HttpRequest::ERROR)
-            return;
-
-        switch (req.getState())
-        {
-        case HttpRequest::REQ_LINE:
-        {
-            const std::string &buf = req.getBuffer();
-
-            size_t pos = buf.find("\r\n");
-            if (pos == std::string::npos)
-                pos = buf.find("\n");
-
-            if (pos == std::string::npos)
-                return; // need more data
-
-            std::string req_line = buf.substr(0, pos);
-            std::cout << "request line: " << req_line << std::endl;
-
-            try
-            {
-                parseRequestLine(req_line, sock_fd);
-            }
-            catch (const std::exception &e)
-            {
-                std::string s = e.what();
-                std::cout << "🚨🚨🚨 ERROR in parse request line: "
-                          << "method: " << req.getMethod()
-                          << ", path: " << req.getPath()
-                          << ", protocol: " << req.getProtocol() << std::endl;
-
-                int code = error_to_code(s);
-                if (code < 0) code = 400;
-                req.setStatusCode(code);
-                req.setState(HttpRequest::ERROR);
-                return;
-            }
-
-            size_t newline_len = (buf[pos] == '\r') ? 2 : 1;
-            consume(0, pos + newline_len, sock_fd);
-
-            if (!validateRequestLine(sock_fd))
-            {
-                req.setState(HttpRequest::ERROR);
-                std::cout << "🚨🚨🚨 ERROR in validation request line "
-                          << req.getMethod() << " "
-                          << req.getPath() << " "
-                          << req.getProtocol() << std::endl;
-                return;
-            }
-
-            req.setState(HttpRequest::HEADER);
-            std::cout << "[REQ_LINE STATE] has completed, Transit to HEADER\n\n";
-            continue;
-        }
-
-        case HttpRequest::HEADER:
-        {
-            const std::string &buf = req.getBuffer();
-            std::cout << req.getHeaderSize() << "✴️✴️✴️ HEADER STATE ✴️✴️✴️\n";
-
-            if (buf.size() > MAX_HEADER_SIZE)
-            {
-                req.setStatusCode(431);
-                req.setState(HttpRequest::ERROR);
-                std::cout << "🚨🚨🚨 ERROR in header size " << buf.size() << std::endl;
-                return;
-            }
-
-            size_t header_end = buf.find("\r\n\r\n");
-            size_t delim = 4;
-
-            if (header_end == std::string::npos)
-            {
-                header_end = buf.find("\n\n");
-                delim = 2;
-            }
-
-            if (header_end == std::string::npos)
-                return; // need more data
-
-            std::string header_block = buf.substr(0, header_end);
-            parseHeader(header_block, sock_fd);
-
-            if (req.getState() == HttpRequest::ERROR)
-                return;
-
-            if (!validateHeaders(sock_fd))
-            {
-                req.setState(HttpRequest::ERROR);
-                std::cout << "🚨🚨🚨 ERROR: validation header "
-                          << req.getStatusCode() << std::endl;
-                return;
-            }
-
-            // Decide next state based on method + Content-Length
-            const std::map<std::string, std::string> &headers = req.getHeader();
-            std::map<std::string, std::string>::const_iterator it =
-                headers.find("content-length"); // after lower case
-
-            if (it != headers.end())
-            {
-                long len = atoll(it->second.c_str());
-                req.setContentLen(static_cast<size_t>(len));
-
-                if (req.getMethod() == "POST" || 
-                    (req.getMethod() == "DELETE" && len > 0))
-                {
-                    req.setState(HttpRequest::BODY);
-                }
-                else
-                {
-                    // GET/HEAD with Content-Length > 0 already rejected in validateHeaders()
-                    req.setState(HttpRequest::DONE);
-                }
-            }
-            else
-            {
-                // No Content-Length → no body
-                req.setState(HttpRequest::DONE);
-            }
-
-            consume(0, header_end + delim, sock_fd);
-            continue;
-        }
-
-        case HttpRequest::BODY:
-        {
-            const std::string &buf = req.getBuffer();
-            size_t need = req.getContetnLen();
-
-            if (buf.size() < need)
-                return; // wait for more
-
-            std::string body = buf.substr(0, need);
-
-            if (!validateBody(sock_fd, body))
-            {
-                req.setState(HttpRequest::ERROR);
-                req.shouldClose = true;
-                return;
-            }
-
-            req.setBody(body);
-            consume(0, need, sock_fd);
-
-            req.setState(HttpRequest::DONE);
-            return;
-        }
-
-        case HttpRequest::DONE:
-        {
-            return;
-        }
-
-        case HttpRequest::ERROR:
-        {
-            req.shouldClose = true;
-            std::cout << "🚨🚨🚨 ERROR: final state, status "
-                      << req.getStatusCode() << std::endl;
-            return;
-        }
-
-        default:
-            return;
-        }
-    }
-}
-
-
-/*------------------------------------------------------------------------------------------*/
-/*																							*/
-/*									validation												*/
-/*																							*/
-/*------------------------------------------------------------------------------------------*/
-bool Server::validateRequestLine(int fd)
-{
-	//1.  methos os case-sensitive?
-	HttpRequest &req = http_req[fd];
-    if (req.getMethod() != "GET" && req.getMethod() != "POST" && req.getMethod() != "DELETE")
-	{
-		req.setStatusCode(405); // bad request
-        return false;
-	}
-
-	//2.  both version HTTP/1.0 and HTTP/1.1
-    if (req.getProtocol() != "HTTP/1.1" && req.getProtocol() != "HTTP/1.0")
-	{
-		req.setStatusCode(505);
-        return false;
-	}
-
-	// 3. Path must start with /
-	const std::string &path = req.getPath();
-    if (path.empty() || path[0] != '/')
-	{
-		req.setStatusCode(400);
-        return false;
-	}
-
-	// 4. Reject absolute urls
-	if (path.find("://") != std::string::npos)
-	{
-		req.setStatusCode(400);
-		return false;
-	}
-
-	// 5. Reject space or controll chars
-	for (size_t i = 0; i < path.size(); i++)
-	{
-		if (path[i] <= 31 || path[i] == ' ')
-		{
-			req.setStatusCode(400);
-			return false;
-		}
-	}
-	
-	// 6. Reject too-long path
-	if (path.size() > 8192)
-	{
-		req.setStatusCode(414);
-		return false;
-	}
-    return true;
-}
-
-bool Server::validateHeaders(int fd)
-{
-    HttpRequest &req = http_req[fd];
-    const std::map<std::string, std::string> &headers = req.getHeader();
-
-    // 1. Host header required for HTTP/1.1
-    if (req.getProtocol() == "HTTP/1.1")
-    {
-        if (headers.count("Host") == 0 &&
-            headers.count("host") == 0)
-        {
-            req.setStatusCode(400);
-            return false;
-        }
-    }
-
-    // 2. Reject Transfer-Encoding (we don't support chunked)
-    if (headers.count("transfer-encoding"))
-    {
-        req.setStatusCode(501); // Not implemented
-        return false;
-    }
-
-    // 3. Content-Length validation
-    std::map<std::string, std::string>::const_iterator it =
-        headers.find("content-length");
-	
-    // POST must have Content-Length
-    if (req.getMethod() == "POST")
-    {
-        if (it == headers.end())
-        {
-            req.setStatusCode(411); // Length Required
-            return false;
-        }
-    }
-
-    // GET/HEAD must not have body
-    if ((req.getMethod() == "GET" || req.getMethod() == "HEAD") &&
-        it != headers.end() &&
-        atoll(it->second.c_str()) > 0)
-    {
-        req.setStatusCode(400);
-        return false;
-    }
-
-    // DELETE: body allowed only if allow_upload on
-    if (req.getMethod() == "DELETE" &&
-        it != headers.end() &&
-        atoll(it->second.c_str()) > 0)
-    {
-        const Config *conf = req.getServerConfig();
-        bool allow_upload = false;
-
-        if (conf && conf->directives.count("allow_upload"))
-            allow_upload = true;
-
-        if (!allow_upload)
-        {
-            req.setStatusCode(400);
-            return false;
-        }
-    }
-
-    // 4. Validate Content-Length numeric
-    if (it != headers.end())
-    {
-        const std::string &cl = it->second;
-
-        // numeric only
-        if (cl.empty() || cl.find_first_not_of("0123456789") != std::string::npos)
-        {
-            req.setStatusCode(400);
-            return false;
-        }
-
-        long long body_size = atoll(cl.c_str());
-        if (body_size < 0)
-        {
-            req.setStatusCode(400);
-            return false;
-        }
-
-        // 5. Check max_body_size
-        const Config *conf = req.getServerConfig();
-        if (conf)
-        {
-            std::map<std::string, std::vector<std::string> >::const_iterator mit =
-                conf->directives.find("max_body_size");
-
-            if (mit != conf->directives.end())
-            {
-                long long max_size = atoll(mit->second[0].c_str());
-                if (body_size > max_size)
-                {
-                    req.setStatusCode(413);
-                    return false;
-                }
-            }
-        }
-    }
-
-    return true;
-}
-
-bool Server::validateBody(int fd, const std::string &body)
-{
-    HttpRequest &req = http_req[fd];
-    size_t len = req.getContetnLen();
-
-    // 1. Length mismatch
-    if (body.size() != len)
-        return false;
-
-    // 2. Too large (config)
-    const Config* config = req.getServerConfig();
-    size_t max_body_size = 0;
-
-    if (config)
-	{
-        std::map<std::string, std::vector<std::string> >::const_iterator it =
-            config->directives.find("max_body_size");
-
-        if (it != config->directives.end() && !it->second.empty())
-            max_body_size = static_cast<size_t>(atoll(it->second[0].c_str()));
-    }
-
-    if (max_body_size > 0 && len > max_body_size)
-    {
-        req.setStatusCode(413);
-        return false;
-    }
-
-    // 3. GET/HEAD must not have a body
-    if ((req.getMethod() == "GET") && len > 0)
-    {
-        req.setStatusCode(400);
-        return false;
-    }
-
-    // 4. DELETE must not have a body unless allow_upload is on
-    if (req.getMethod() == "DELETE" && len > 0)
-    {
-        const Config* conf = req.getServerConfig();
-        bool allow_upload = false;
-
-        if (conf) {
-            std::map<std::string, std::vector<std::string> >::const_iterator it =
-                conf->directives.find("allow_upload");
-
-            if (it != conf->directives.end())
-                allow_upload = true;
-        }
-
-        if (!allow_upload) {
-            req.setStatusCode(400);
-            return false;
-        }
-    }
-
-    // 5. POST must have Content-Type
-    if (req.getMethod() == "POST")
-    {
-        if (req.getHeader().count("content-lype") == 0)
-        {
-            req.setStatusCode(400);
-            return false;
-        }
-    }
-
-    return true;
-}
-

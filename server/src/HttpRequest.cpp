@@ -5,7 +5,13 @@ HttpRequest::HttpRequest()
 shouldClose(false) , header_done(false),
 state(REQ_LINE),
 recvBuffer(),
-method() , path() , protocol() , sock_fd_cleint(-1) , header() , conten_len(0) , body(),
+method() , path(),
+query(),
+protocol(),
+sock_fd_cleint(-1),
+header(),
+conten_len(0),
+body(),
 server(NULL),
 connection_close(false), 
 statusCode(0),
@@ -71,6 +77,8 @@ HttpRequest& HttpRequest::operator=(const HttpRequest &other)
         this->header_size      = other.header_size;
         this->shouldClose      = other.shouldClose;
         this->header_done      = other.header_done;
+        this->contentType      = other.contentType;
+		this->query			   = other.query;
     }
     return *this;
 }
@@ -122,14 +130,19 @@ void HttpRequest::eraseBuffer(size_t start, size_t end)
 	this->recvBuffer.erase(start, end);
 }
 
-//--------------------------#
-//		getter				#
-//--------------------------#
-std::string HttpRequest::getContentType() const
+//------------------------------------------------------#
+//														#
+//						getter							#
+//														#
+//------------------------------------------------------#
+const std::string& HttpRequest::getContentType() const
 {
 	return this->contentType;
 }
-
+const std::string& HttpRequest::getQuery() const
+{
+	return this->query;
+}
 int HttpRequest::getStatusCode() const
 {
 	return this->statusCode;
@@ -187,9 +200,15 @@ const Config* HttpRequest::getServerConfig() const{
 }
 
 void HttpRequest::clearBuffer(){recvBuffer.clear();}
-//--------------------------#
-//		setter				#
-//--------------------------#
+//------------------------------------------------------#
+//														#
+//						setter							#
+//														#
+//------------------------------------------------------#
+void HttpRequest::setQuery(const std::string &_query)
+{
+	this->query = _query;
+}
 void HttpRequest::setContentType(std::string content)
 {
 	this->contentType = content;

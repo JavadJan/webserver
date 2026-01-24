@@ -34,10 +34,10 @@ poll_start_index(0)
 
 Server::~Server()
 {
-	for (size_t i = 0; i < res.size(); i++)
-	{
-		freeaddrinfo(res[i]);
-	}
+	//for (size_t i = 0; i < res.size(); i++)
+	//{
+	//	freeaddrinfo(res[i]);
+	//}
 }
 
 static void set_nonblocking(int fd)
@@ -242,7 +242,7 @@ void	Server::read_data_from_socket(int i)
 		}
 		if (http_req[sender_fd].getState() != HttpRequest::ERROR)
 			fsm(sender_fd); // in fsm get req with http_req[sender_fd]
-		std::cout <<http_req[sender_fd].getBuffer().size() << " MAX\n";
+		std::cout <<http_req[sender_fd].getBuffer().size() << ", " << http_req[sender_fd].getQuery() << " MAX \n";
 		
 		http_req[sender_fd].setClientSocket(sender_fd); // client<->server
 

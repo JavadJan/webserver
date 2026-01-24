@@ -80,6 +80,7 @@ class Server{
 		void fsm(int sock_fd); // control strea string from TCP
 		/* in each state I remove after complition STATE */
 	public:
+		
 		Server(std::vector<struct Config> serversConfig);
 		~Server();
 		void setServerConfig(Config conf);
