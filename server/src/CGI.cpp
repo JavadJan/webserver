@@ -166,11 +166,6 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		close(in_fd[1]);
 		return;
 	}
-	if (req.getMethod() == "POST")
-	{
-		write(in_fd[1],req.getBody().c_str(), req.getBody().size());
-	}
-	close(in_fd[1]);
 	if (pid == 0)
 	{
 		// Child process
@@ -188,9 +183,15 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 	else
 	{
 		std::cout << "env: " << env[0] << std::endl;
+		close(in_fd[0]); // here write no nead to input
+		if (req.getMethod() == "POST")
+		{
+			write(in_fd[1], req.getBody().c_str(), req.getBody().size());
+		}
+		close(in_fd[1]);
+
 		// Parent process
 		close(out_fd[1]);
-		close(in_fd[0]); // here write no nead to input
 		char buffer[4096];
 		ssize_t bytesRead;
 		while ((bytesRead = read(out_fd[0], buffer, sizeof(buffer))) > 0)
