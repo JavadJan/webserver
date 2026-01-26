@@ -201,7 +201,29 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		close(out_fd[0]);
 		waitpid(pid, &statusChild, 0);
 		parseOutBufferCGI(outBuffer);
-		res.setStatusCode(200);
+
+		if (WIFEXITED(statusChild))
+        {
+                int code = WEXITSTATUS(statusChild);
+                if (code == 0)
+                {
+					res.setStatusCode(200);
+                }
+                else
+                {
+                    res.setStatusCode(500);
+                }
+        }
+        //if (WIFSIGNALED(statusChild))
+        //{
+        //        sig = WTERMSIG(status);
+        //        if (verbose)
+        //                printf("Bad function: %s\n", strsignal(sig));
+        //        return (0);
+        //}
+
+		
+		//res.setStatusCode(200);
 		res.setBody(getBodyCGI());
 	}
 
