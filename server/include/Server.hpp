@@ -26,7 +26,7 @@
 #define MAX_HEADER_SIZE 16384
 #define PORT 4242
 
-class Config;
+// class Config;
 //class HttpRequest;
 
 class Server{
