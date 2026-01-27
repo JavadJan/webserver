@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/02 20:39:11 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/09 01:16:35 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/15 19:12:15 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,16 +42,32 @@ bool HTTPRequest::isComplete(const std::string &buffer)
     size_t headerEnd = buffer.find("\r\n\r\n");
     if(headerEnd == std::string::npos)
     {
-        std::cout << "A 1" << std::endl;   
+        std::cout << "isComplete Error 1" << std::endl;   
         return false;
     }
 
+    size_t methode_pos = buffer.find_first_of(" \t\n\r");
+    if(methode_pos == std::string::npos)
+        return false;
+    std::string methode = buffer.substr(0, methode_pos);
+    std::cout << "METHODE :" << methode << std::endl;
+    if(methode == "GET" || methode == "DELETE")
+    {
+        std::cout << "GET or DELETE. ISCOMPLETE" << std::endl;
+        return true;
+    }
+    if(methode != "POST")
+    {
+        std::cout << "isComplete Error. NO POST" << std::endl;
+        return false;
+    }
+          
     // check Content-Length 
     size_t pos = buffer.find("Content-Length:");
     if(pos == std::string::npos)
     {
-        std::cout << "A 2" << std::endl;
-        return true;
+        std::cout << "isComplete Error 2" << std::endl;
+        return false;
     }
 
     // get content length value
@@ -64,17 +80,18 @@ bool HTTPRequest::isComplete(const std::string &buffer)
     size_t endLength = buffer.find("\r\n", pos);
     if(endLength == std::string::npos)
     {
-        std::cout << "A 3" << std::endl;
+        std::cout << "isComplete Error 3" << std::endl;
         return false;
     }
     
     std::string contentLength_s = buffer.substr(pos, endLength - pos);
     int contentLength = std::atoi(contentLength_s.c_str());
     
-    (void)contentLength;
-    // now calculate the body size ?
+    size_t sizeNeeded = headerEnd + 4 + contentLength;
+    if(buffer.size() < sizeNeeded)
+        return false;
 
-    std::cout << "A 4" << std::endl;
+    std::cout << "isComplete DONE" << std::endl;
     return true;
 }
 
@@ -142,7 +159,7 @@ void HTTPRequest::parseHeaders(const std::string &buffer)
 
 void HTTPRequest::parseBody(const std::string &buffer)
 {
-    std::cout << "parseBody" << std::endl;
+    // std::cout << "parseBody" << std::endl;
     
     if(_header.find("Content-Length") == _header.end())
     {
@@ -153,16 +170,16 @@ void HTTPRequest::parseBody(const std::string &buffer)
     {
         size_t contentLength = std::atoi(_header["Content-Length"].c_str());
         size_t bodyStart = buffer.find("\r\n\r\n") + 4;
-        std::cout << "Body Info: " << contentLength << " " << bodyStart << std::endl;
+        // std::cout << "Body Info: " << contentLength << " " << bodyStart << std::endl;
         _body = buffer.substr(bodyStart, contentLength);
-        std::cout << "BODY IS: " << _body << std::endl;
+        // std::cout << "BODY IS: " << _body << std::endl;
     }
 }
 
 void HTTPRequest::parseAll(const std::string &buffer)
 {
-    if(isComplete(buffer) == false)
-        throw std::runtime_error("HTTP Request not complete");
+    // if(isComplete(buffer) == false)
+    //     throw std::runtime_error("HTTP Request not complete");
     
     parseRequestLine(buffer);
     parseHeaders(buffer);

@@ -6,14 +6,14 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/08 10:19:59 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/08 13:56:02 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/18 17:49:00 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include <iostream>
 #include "Config.hpp"
+#include <iostream>
 
 class MIME
 {

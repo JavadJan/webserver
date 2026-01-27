@@ -11,7 +11,8 @@ SRC       = $(SRC_DIR)/main.cpp \
 			$(SRC_DIR)/HTTPResponse.cpp \
 			$(SRC_DIR)/HTTPHandler.cpp \
 			$(SRC_DIR)/MIME.cpp \
-			$(SRC_DIR)/Client.cpp
+			$(SRC_DIR)/Client.cpp \
+			$(SRC_DIR)/CGIHandler.cpp
 
 OBJ_DIR   = obj
 OBJ       = $(SRC:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)

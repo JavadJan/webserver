@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/21 11:23:25 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/07 23:05:03 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/15 02:36:48 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,7 +23,7 @@
 #include <fcntl.h>
 // #include <stdexcept>
 
-# define PORT 4242
+// # define PORT 4242
 
 class Server
 {

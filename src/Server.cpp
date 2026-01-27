@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/21 11:34:46 by asemykin          #+#    #+#             */
-/*   Updated: 2025/12/22 01:07:43 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/15 02:37:10 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 Server::Server()
 {
-    _port = PORT;
+    // _port = PORT;
 }
 
 Server::Server(int port)

@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/06 23:36:59 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/09 15:56:40 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/18 17:37:54 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -67,6 +67,7 @@ std::string HTTPResponse::reasonPhrase(int code)
         case 405: return "Method Not Allowed";
         case 411: return "Length Required";
         
+        case 500: return "Not Implemented";
         case 501: return "Not Implemented";
 
         case 600: return "Temp Error code";
@@ -101,4 +102,48 @@ std::string HTTPResponse::getHeaderType(const std::string &key)
         return "";
     }
     return _headers[key];
+}
+
+void HTTPResponse::setErrorResponse(int status, std::string error_page)
+{
+    setStatus(status, reasonPhrase(status));
+    
+    std::string path = error_page;
+    if(!path.empty())
+    {
+        int fd = open(path.c_str(), O_RDONLY);
+        if(fd >= 0)
+        {
+            std::string body;
+            char buffer[BUFFERSIZE];
+            ssize_t bytes;
+            while(1)
+            {
+                bytes = read(fd, buffer, sizeof(buffer));
+                if(bytes <= 0)
+                    break;
+                body.append(buffer, bytes);
+            }
+            close(fd);
+
+            setBody(body);
+            
+            std::string sfx = MIME().getSuffix(path);
+            setHeader("Content-Type", MIME().getMimeType(sfx));
+        }
+        else
+        {
+            std::stringstream ss;
+            ss << status;
+            setBody("ERROR " + ss.str() + "\n");
+        }
+    }
+    else
+    {
+        std::stringstream ss;
+        ss << status;
+        setBody("ERROR " + ss.str() + "\n");
+    }
+        
+    setHeader("Connection", "close");
 }

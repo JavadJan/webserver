@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/21 18:34:47 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/10 00:58:23 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/19 01:41:04 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@
 #include "../includes/HTTPRequest.hpp"
 #include "../includes/HTTPResponse.hpp"
 #include "../includes/HTTPHandler.hpp"
+#include "../includes/CGIHandler.hpp"
 
 #include <poll.h>
 #include <vector>
@@ -25,17 +26,76 @@
 
 void insertPollfds(std::vector<struct pollfd> &pfds, int client);
 
+/*
+echo -e "DELETE /dTest.txt HTTP/1.1\r\nHost: loc
+alhost\r\nContent-Length: 11\r\n\r\nHello World" | nc localhost 4242
 
-#include <string>
+echo -e "GET /uploads/test.php HTTP/1.
+1\r\nHost: localhost\r\n\r\n" | nc localhost 4242
+
+*/
+
+#include <sys/wait.h>
+void forkExample()
+{
+    int fd[2]; //fd[0] STDIN, fd[1] STDOUT
+    pipe(fd);
+    
+    pid_t pid = fork();
+    
+    // in child process
+    if(pid == 0)
+    {
+        int x = 10;
+        close(fd[0]);
+        for (int i = 0; i < x;i++)
+        {
+            std::string msg = "HELLO WORLD!!";
+            write(fd[1], msg.c_str(), msg.size());
+            usleep(1);
+        }
+        close(fd[1]);
+        exit(0);
+    }
+
+    close(fd[1]);
+    char buffer[100];
+    while(1)
+    {
+        ssize_t n = read(fd[0], buffer, sizeof(buffer)-1);
+        if(n <= 0)
+            break;
+        buffer[n] = '\0';
+        std::cout << "recieved :" << buffer << std::endl;
+    }
+
+    close(fd[0]);
+    waitpid(pid, NULL, 0);
+    return;
+}
+
 int main(int argv, char **argc)
 {
+    // CGIHandler cgi;
+    // cgi.buildEnvironment();
+    // HTTPHandler han;
+    // han.getDirectotyListing("./www", "");
+    // forkExample();
+    
     if(argv != 2)
         return 1;
-    // Server server(4243);
+
+    Config config;
+    config.loadFile("./config.config");
+    std::vector<ConfigServer>  configServer = config.parseConfig();
+    config.setServer(configServer);
+    
+
     Server server(std::atoi(argc[1]));
     // Client client;
     std::vector<struct pollfd> pollfds;
     std::map<int, HTTPRequest> clientRequests;
+    std::map<int, ClientConnection> clients;
     
     server.createSocket();
     server.setNonBlocking(server.getSocket());
@@ -56,84 +116,111 @@ int main(int argv, char **argc)
         {
             if(pollfds[i].revents & POLLIN) 
             {
-                std::cout << "2" << std::endl;
-                if(pollfds[i].fd == server.getSocket())
+                // std::cout << "2" << std::endl;
+                int fd = pollfds[i].fd;
+                if(fd == server.getSocket())
                 {
-                    std::cout << "3" << std::endl;
+                    // std::cout << "3" << std::endl;
                     int clientFd = server.acceptClient();
                     if(clientFd >= 0)
                     {
-                        std::cout << "4" << std::endl;
+                        // std::cout << "4" << std::endl;
                         // client.setFd(clientFd);
                         server.setNonBlocking(clientFd);
                         insertPollfds(pollfds, clientFd);
-                        clientRequests[clientFd] = HTTPRequest();
+                        // clientRequests[clientFd] = HTTPRequest(); // REMOVE
+                        ClientConnection ccon;
+                        ccon.bytesSent = 0;
+                        clients[clientFd] = ccon;
                     }
                 }
                 else
                 {
-                    std::cout << "5" << std::endl;
+                    // std::cout << "5" << std::endl;
                     // client.readData();
                     char buffer[BUFFERSIZE];
-                    ssize_t bytesRead = recv(pollfds[i].fd, buffer, BUFFERSIZE, 0);
+                    ssize_t bytesRead = recv(fd, buffer, BUFFERSIZE, 0);
                     
                     if(bytesRead > 0)
                     {
                         std::cout << "6" << std::endl;
                         // handle recieved data
-
-                        clientRequests[pollfds[i].fd].appendData(buffer, bytesRead);
-                          
-                        if(clientRequests[pollfds[i].fd].isComplete(clientRequests[pollfds[i].fd].getData()))
+                        // clientRequests[fd].appendData(buffer, bytesRead);// REMOVE
+                        clients[fd].request.appendData(buffer, bytesRead);
+                        // if(clientRequests[fd].isComplete(clientRequests[fd].getData())) // REMOVE
+                        if(clients[fd].request.isComplete(clients[fd].request.getData()))
                         {
-                            clientRequests[pollfds[i].fd].parseAll(clientRequests[pollfds[i].fd].getData());
-                            std::cout << "Methode: " << clientRequests[pollfds[i].fd].getMethode();
-                            std::cout << "\nPath: " << clientRequests[pollfds[i].fd].getPath();
-                            std::cout << "\nVersion: " << clientRequests[pollfds[i].fd].getVersion();
-                            std::cout << "\nBody: " << clientRequests[pollfds[i].fd].getBody() << "\n\n";
+                            // clientRequests[fd].parseAll(clientRequests[fd].getData()); // REMOVE
+                            clients[fd].request.parseAll(clients[fd].request.getData());
+                            // std::cout << "Methode: " << clientRequests[fd].getMethode();
+                            // std::cout << "\nPath: " << clientRequests[fd].getPath();
+                            // std::cout << "\nVersion: " << clientRequests[fd].getVersion();
+                            // std::cout << "\nBody: " << clientRequests[fd].getBody() << "\n\n";
                             
-                            // HTTPResponse httpRes;
-                            // httpRes.setStatus(200, "OK");
-                            // httpRes.setHeader("Content-Type", "text/plain");
-                            // std::string body = "Hello world\n";
-                            // std::stringstream ss;
-                            // ss << body.size();
-                            // httpRes.setHeader("Content-Length", ss.str());
-                            // httpRes.setBody(body);
+                            int serverPort = config.checkServerExists(server.getPort());
+                            if(serverPort < 0)
+                            {
+                                std::cout << "INTERNAL ERROR. CONFIG PORT\n" << std::endl;
+                                
+                                // internal error if port and config port does not match
+                                HTTPResponse httpRes;
+                                httpRes.setStatus(500, httpRes.reasonPhrase(500));
+                                httpRes.setBody("NO PORT\n");
+                                std::string response = httpRes.response();
+                                send(fd, response.c_str(), response.size(), 0);
+                                close(fd);
+                                pollfds.erase(pollfds.begin() + i);
+                                // clientRequests.erase(fd); // REMOVE
+                                clients.erase(fd);
+                                i--;
+                                continue;
+                            }
+                            std::cout << "6 a" << std::endl;
                             
-                            // HTTPResponse httpRes;
-                            // httpRes.setStatus(200, "OK");
-                            // httpRes.setBody("Hello world\n");
-                            // std::string response = httpRes.response();
-
-                            // send(pollfds[i].fd, response.c_str(), response.size(), 0);
+                            std::string response;
+                            CGIHandler  cgi;
+                            ConfigServer cser = config.getServer(serverPort);
                             
-                            HTTPHandler han;
-                            han.setRequest(clientRequests[pollfds[i].fd]);
-                            han.handleRequest(clientRequests[pollfds[i].fd]);
-                            // httpRes.setStatus(200, "OK");
-                            // httpRes.setBody("Hello world\n");
-                            std::string response = han.getResponse();
-
-                            send(pollfds[i].fd, response.c_str(), response.size(), 0);
+                            if(cgi.isCGI(clients[fd].request.getPath()))
+                            {
+                                std::cout << "IN CGI" << std::endl;
+                                cgi.setRequest(clients[fd].request);
+                                cgi.setConfigServer(cser);
+                                cgi.handleCGI();
+                                response = cgi.getResponse();
+                            }
+                            else
+                            {
+                                std::cout << "IN HTTP HANDLER" << std::endl;
+                                HTTPHandler han;
+                                han.setRequest(clients[fd].request);
+                                han.setConfigServer(cser);
+                                han.handleRequest();
+                                response = han.getResponse();
+                            }
                             
-                            close(pollfds[i].fd);
-                            pollfds.erase(pollfds.begin() + i);
-                            clientRequests.erase(pollfds[i].fd);
+                            clients[fd].response = response;
+                            clients[fd].bytesSent = 0;
+                            
+                            // bitwise operation for switch states. stop reading, start writing
+                            pollfds[fd].events &= ~POLLIN;
+                            pollfds[i].events |= POLLOUT;
+                            // send(fd, response.c_str(), response.size(), 0);
+                            std::cout << "6 b" << std::endl;
+                            // close(fd);
+                            // pollfds.erase(pollfds.begin() + i);
+                            // // clientRequests.erase(fd); // REMOVE
+                            // clients.erase(fd);
                         }      
                         else
-                            std::cout << "7" << std::endl;                
-                        // buffer[bytesRead] = '\0';
-                        // std::cout << "Recieved:\n" << buffer << std::endl;
-
-                        // std::string response = "Confirmation - Data has been recieved\n";
-                        // send(pollfds[i].fd, response.c_str(), response.size(), 0);
+                            std::cout << "7" << std::endl;          
                     }
                     else if(bytesRead == 0)
                     {
                         // client closed the connection
                         std::cout << "Client has closed the connection" << std::endl;
-                        close(pollfds[i].fd); 
+                        close(fd); 
+                        clients.erase(fd);
                         pollfds.erase(pollfds.begin() + i);
                         i--;
                     }
@@ -143,6 +230,27 @@ int main(int argv, char **argc)
                         // ignore
                     }
                 }
+            }
+            if(pollfds[i].revents & POLLOUT) 
+            {
+                std::cout << "8" << std::endl;
+                int fd = pollfds[i].fd;
+                ClientConnection &cc = clients[fd];
+                
+                size_t remaining = cc.response.size() - cc.bytesSent;
+                ssize_t sent = send(fd, cc.response.c_str() + cc.bytesSent, remaining, 0);
+
+                if(sent > 0)
+                    cc.bytesSent += sent;
+
+                if(cc.bytesSent == cc.response.size())
+                {
+                    close(fd);
+                    clients.erase(fd);
+                    pollfds.erase(pollfds.begin() + i);
+                    i--;
+                }
+                std::cout << "9" << std::endl;
             }
         }
     }

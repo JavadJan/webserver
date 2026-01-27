@@ -6,7 +6,7 @@
 /*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/02 20:36:21 by asemykin          #+#    #+#             */
-/*   Updated: 2026/01/09 01:16:57 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/01/14 23:12:43 by asemykin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 #include <vector>
 #include <sstream>
 #include <cstdlib>
+
 
 class HTTPRequest
 {
@@ -53,4 +54,11 @@ class HTTPRequest
         std::string getData()const;
         std::string getBody()const;
         
+};
+
+struct ClientConnection
+{
+    HTTPRequest request;
+    std::string response;
+    size_t bytesSent;
 };
