@@ -104,7 +104,7 @@ int Server::create_socket_bind()
 		// list of socket
 		pollfd serverPoll;
 		serverPoll.fd = server_fd; // add server socket to pollfd
-		serverPoll.events = POLLIN; // it won't block recv();
+		serverPoll.events = POLLIN; // it won't block recv(); // PAY ATTENTION TO HERE FOR SAME READ AND WRITE
 		serverPoll.revents = 0;
 	
 		poll_fds.push_back(serverPoll);
@@ -169,7 +169,7 @@ void Server::run()
 					read_data_from_socket(i);
 				}
 			}
-			else if (poll_fds[i].revents & POLLOUT)
+			if (poll_fds[i].revents & POLLOUT)
 			{
 				write_data_to_socket(i);
 			}
@@ -270,7 +270,7 @@ void	Server::read_data_from_socket(int i)
 			http_req[sender_fd].sendBuffer = response ; 
 			http_req[sender_fd].sendOffset = 0;
 			http_req[sender_fd].setState(HttpRequest::SENDING);
-			set_poll_events(sender_fd, POLLOUT); 
+			set_poll_events(sender_fd, POLLOUT | POLLOUT); 
 			// here it goes to send mode
 		}
 	}
@@ -347,7 +347,7 @@ void Server::write_data_to_socket(int i)
 		std::cout << fd << " prepare to READ after send occured\n";
         set_poll_events(fd, POLLIN); 
 
-        if (req.getHeader()["Connection"] == "close")
+        if (req.getHeader()["connection"] == "close")
 		{
             // Cleanup and close
 			cleanup_client(i, fd);
@@ -367,7 +367,7 @@ void Server::add_to_poll_fds(int cleint_fd)
 {
     pollfd p;
     p.fd = cleint_fd;
-    p.events = POLLIN;
+    p.events = POLLIN | POLLOUT;
     p.revents = 0;
 
     poll_fds.push_back(p);

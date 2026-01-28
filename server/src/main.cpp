@@ -20,6 +20,7 @@ int	main(int ac, char *argv[], char **env)
 		/* code */
 		std::vector<struct Config> serversConfig = parseConfig(argv[1]);
 		std::cout << serversConfig[0].port << std::endl;
+		
 		Server server(serversConfig);
 		server.run();
 	}

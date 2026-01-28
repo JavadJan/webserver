@@ -221,15 +221,16 @@ void ResponseHandler::handleGet()
 
 void ResponseHandler::handleDelete()
 {
-
+	/// remain
 }
 
 static bool uploadEnabled(struct Location *loc)
 {
+	//// reamin
 	std::map<std::string, std::vector<std::string> >::const_iterator obj = loc->directive.find("allow_upload");
 	if (obj->second[0] == "on")
 	{
-		return true;
+		return true; 
 	}	
 	//confServer.locations.
 	return false;
@@ -273,7 +274,7 @@ void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
     // Upload?
     if (uploadEnabled(this->loc))
     {
-        handleUpload(req, server);
+        handleUpload(req, server); /// 
         return;
     }
 	
