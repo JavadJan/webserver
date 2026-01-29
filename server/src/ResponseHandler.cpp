@@ -255,6 +255,7 @@ void ResponseHandler::handleUpload(const HttpRequest &req, const Config &server)
 {
 	(void)req;
 	(void)server;
+	std::cout << "start to handle upload\n";
 
 }
 
