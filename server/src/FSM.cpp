@@ -400,19 +400,24 @@ void Server::fsm(int sock_fd)
 
         case HttpRequest::BODY:
         {
+			std::cout << "[LOG IN STATE BODY] getBuffer: " << req.getBuffer().size() << "\n";
             const std::string &buf = req.getBuffer();
             size_t need = req.getContetnLen();
+			std::cout << "[LOG IN BODY STATE]  length: " << need << "|\n";
 			if (need == 0) // added later
 			{
 				req.setState(HttpRequest::DONE);
 				return;
 			}
-
+			std::cout << "[LOG IN BODY STATE]  length: " << need << "|\n";
+			
             if (buf.size() < need)
-                return; // wait for more
-
+				return; // wait for more
+			std::cout << "[LOG IN BODY STATE]  length body complete? : " << need << "\n";
+			
             std::string body = buf.substr(0, need);
-
+			std::cout << "[LOG IN BODY STATE]  length body complete? : " << body << "\n";
+			
             if (!validateBody(sock_fd, body))
             {
 				std::cout << "ERROR IN BODY VALIDATION BODY \n"; 
@@ -420,6 +425,7 @@ void Server::fsm(int sock_fd)
                 req.shouldClose = true;
                 return;
             }
+			std::cout << "[LOG IN BODY STATE]  no error after validation? : " << body << "\n";
 
             req.setBody(body);
             consume(0, need, sock_fd);

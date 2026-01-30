@@ -19,37 +19,61 @@ static std::string extractBoundary(const std::string &ctype)
 
     return b;
 }
-
-static std::vector<std::string> splitByBoundary(const std::string& body, const std::string& boundary)
+static std::vector<std::string> splitByBoundary(const std::string &body,
+                                                const std::string &boundary)
 {
     std::vector<std::string> parts;
-    std::string full = "--" + boundary;
 
-    size_t pos = body.find(full);
-    if (pos == std::string::npos)
+    // RFC: boundary lines start with "--"
+    std::string marker = "--" + boundary;
+
+    //size_t pos = 0;
+
+    // 1. Find the first boundary
+    size_t start = body.find(marker);
+    if (start == std::string::npos)
         return parts;
 
-    pos += full.length();
+    start += marker.length();
 
     while (true)
     {
-        size_t next = body.find(full, pos);
+        // 2. Find the next boundary
+        size_t next = body.find(marker, start);
         if (next == std::string::npos)
             break;
 
-        std::string part = body.substr(pos, next - pos);
+        // Extract raw part block
+        std::string part = body.substr(start, next - start);
 
-        // remove leading CRLF
-        if (part.substr(0, 2) == "\r\n")
+        // Remove leading CRLF
+        if (part.size() >= 2 && part[0] == '\r' && part[1] == '\n')
             part.erase(0, 2);
+        else if (part.size() >= 1 && (part[0] == '\n'))
+            part.erase(0, 1);
 
-        parts.push_back(part);
+        // Remove trailing CRLF
+        while (!part.empty() &&
+               (part[part.size() - 1] == '\r' || part[part.size() - 1] == '\n'))
+        {
+            part.erase(part.size() - 1);
+        }
 
-        pos = next + full.length();
+        // Ignore empty parts (can happen)
+        if (!part.empty())
+            parts.push_back(part);
+
+        // Move past this boundary
+        start = next + marker.length();
+
+        // 3. Check for final boundary "--"
+        if (body.compare(start, 2, "--") == 0)
+            break;
     }
 
     return parts;
 }
+
 
 
 // Content-Disposition: form-data; name="avatar"; filename="profile.png"
@@ -86,6 +110,7 @@ static PartInfo parsePartHeaders(const std::string &part)
 static void saveFile(std::string filename, std::string content)
 {
 	std::string path = "./tmp/www/upload/" + filename; 
+	std::cout << "save file in " << path << std::endl;
 	std::ofstream file(path.c_str(), std::ios::binary);
 	file.write(content.data(), content.size());
 }

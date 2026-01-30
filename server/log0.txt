@@ -1,0 +1,91 @@
+detect server with port: 4243
+detect server with port: 4244
+detect server with port: 4245
+4243
+port: 4243
+port: 4244
+port: 4245
+[Server on port: 4243 4244 4245 
+[Server] Accepted new connection on client socket6
+default constructor called0
+STATE before recv on fd 6: 0
+
+[6] Got message: start ----->
+POST /upload HTTP/1.1
+Host: 127.0.0.1:4244
+User-Agent: curl/8.5.0
+Accept: */*
+Content-Length: 208
+Content-Type: multipart/form-data; boundary=------------------------0KvVEH4f8oQBq7IZ1RwxYp
+
+
+<----------end request
+
+HEADER SIZE: 197
+arived to fsm [STATE]: 0
+request line: POST /upload HTTP/1.1
+[REQ_LINE STATE] has completed, Transit to HEADER
+
+197✴️✴️✴️ HEADER STATE ✴️✴️✴️
+[LOG IN STATE BODY] getBuffer: 0
+[LOG IN BODY STATE]  length: 208|
+[LOG IN BODY STATE]  length: 208|
+AFTER FSM state: 2, buffer size 0, query:  MAX 
+6 prepare to READ after send occured
+STATE before recv on fd 6: 0
+
+[6] Got message: start ----->
+--------------------------0KvVEH4f8oQBq7IZ1RwxYp
+Content-Disposition: form-data; name="file"; filename="out.txt"
+Content-Type: text/plain
+
+hello world
+--------------------------0KvVEH4f8oQBq7IZ1RwxYp--
+
+<----------end request
+
+HEADER SIZE: 143
+arived to fsm [STATE]: 0
+request line: --------------------------0KvVEH4f8oQBq7IZ1RwxYp
+🚨🚨🚨 ERROR in parse request line: method: --------------------------0KvVEH4f8oQBq7IZ1RwxYp, path: , protocol: 
+AFTER FSM state: 4, buffer size 208, query:  MAX 
+
+
+HTTP REQ AFTER FSM: 400
+status code renderErrorPage: 400
+status code in creattion res: 400
+status code in creattion res: 400
+response: HTTP/1.1 400 Bad Request!
+Content-Length: 224
+Content-Type: text/html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+</head>
+<body>
+	<p>400</p>
+		Bad Request!
+	</p>
+</body>
+</html>
+6 prepare to READ after send occured
+STATE before recv on fd 6: 0
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 
+[Server on port: 4243 4244 4245 

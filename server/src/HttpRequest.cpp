@@ -235,28 +235,53 @@ void HttpRequest::setStatusCode(int status_code){this->statusCode = status_code;
 void HttpRequest::setState(enum STATE state){ this->state = state;}
 void HttpRequest::setClientSocket(int sock_fd){ this->sock_fd_cleint = sock_fd;}
 //void HttpRequest::setPortServer(std::string port){ this->portServer = port;}
-void HttpRequest::appendBuffer(std::string chunk, int bytes_read)
-{
-    if (bytes_read > static_cast<int>(chunk.size()))
-        bytes_read = chunk.size();
-    recvBuffer.append(chunk, 0, bytes_read);
+//void HttpRequest::appendBuffer(std::string chunk, int bytes_read)
+//{
+//    if (bytes_read > static_cast<int>(chunk.size()))
+//        bytes_read = chunk.size();
+//    recvBuffer.append(chunk, 0, bytes_read);
 
-	if (!header_done)
+//	if (!header_done)
+//    {
+//		header_size += bytes_read;
+//		if (header_size > 16384)
+//        {
+//            state = ERROR;
+//            this->statusCode = 431;
+//			shouldClose = true;
+//            return;
+//        }
+//        size_t pos = recvBuffer.find("\r\n\r\n");
+//        if (pos != std::string::npos)
+//        {
+//            header_size = (pos + 4); // recvBuffer already has whole header
+//			std::cout << "HEADER SIZE: " << header_size << std::endl;
+//            header_done = true;
+//        }
+//    }
+//}
+void HttpRequest::appendBuffer(const char* data, int bytes_read)
+{
+    recvBuffer.append(data, bytes_read);
+
+    if (!header_done)
     {
-		header_size += bytes_read;
-		if (header_size > 16384)
+        header_size += bytes_read;
+
+        if (header_size > 16384)
         {
             state = ERROR;
-            this->statusCode = 431;
-			shouldClose = true;
+            statusCode = 431;
+            shouldClose = true;
             return;
         }
+
         size_t pos = recvBuffer.find("\r\n\r\n");
         if (pos != std::string::npos)
         {
-            header_size = (pos + 4); // recvBuffer already has whole header
-			std::cout << "HEADER SIZE: " << header_size << std::endl;
+            header_size = pos + 4;
             header_done = true;
+            std::cout << "HEADER SIZE: " << header_size << std::endl;
         }
     }
 }

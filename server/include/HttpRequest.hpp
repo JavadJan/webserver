@@ -63,7 +63,8 @@ class HttpRequest
 		
 		
 		void clearBuffer();
-		void appendBuffer(std::string chunk, int bytes_read);
+		//void appendBuffer(std::string chunk, int bytes_read);
+		void appendBuffer(const char* data, int bytes_read);
 		void eraseBuffer(size_t start, size_t end);
 		void resetForNextRequest();
 		/* header size */
