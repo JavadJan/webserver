@@ -15,6 +15,13 @@
 #include <sys/wait.h>
 #include "./Response.hpp" // for response to
 
+
+struct PartInfo
+{
+	std::string content;
+	std::string filename;
+};
+
 class ResponseHandler
 {
   private:

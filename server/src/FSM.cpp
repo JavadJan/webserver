@@ -415,6 +415,7 @@ void Server::fsm(int sock_fd)
 
             if (!validateBody(sock_fd, body))
             {
+				std::cout << "ERROR IN BODY VALIDATION BODY \n"; 
                 req.setState(HttpRequest::ERROR);
                 req.shouldClose = true;
                 return;

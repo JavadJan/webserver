@@ -213,12 +213,16 @@ void	Server::accept_new_connection(int listen_fd)
 
 void	Server::read_data_from_socket(int i)
 {
+	
 	char	chunk[BUFSIZ];
 	int		bytes_read = -1;
 	int		sender_fd;
 
 	sender_fd = poll_fds[i].fd;
 	memset(&chunk, '\0', sizeof(chunk));
+	std::cout << "STATE before recv on fd " << sender_fd
+          << ": " << http_req[sender_fd].getState() << std::endl;
+
 	//recv() just reads whatever bytes are currently available in the kernel buffer for that socket.
 	if (http_req[sender_fd].getState() == HttpRequest::SENDING ||
     	http_req[sender_fd].getState() == HttpRequest::ERROR)
@@ -246,8 +250,9 @@ void	Server::read_data_from_socket(int i)
 		
 		http_req[sender_fd].setClientSocket(sender_fd); // client<->server
 
-		if (http_req[sender_fd].getState() == HttpRequest::DONE 
+		if ((http_req[sender_fd].getState() == HttpRequest::DONE 
 			|| http_req[sender_fd].getState() == HttpRequest::ERROR)
+			&& http_req[sender_fd].getBuffer().empty())
 		{
 			// when recv() finished enabple POLLOUT to send()
 			std::cout << "\n\nHTTP REQ AFTER FSM: " << http_req[sender_fd].getStatusCode() << std::endl;

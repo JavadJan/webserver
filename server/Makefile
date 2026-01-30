@@ -14,7 +14,7 @@ OBJ_F = obj/
 SRC_F = src/
 
 SRC = main.cpp Config.cpp HttpRequest.cpp Server.cpp FSM.cpp ResponseHandler.cpp\
-		Response.cpp CGI.cpp
+		Response.cpp CGI.cpp utilsResHandlerMultiPart.cpp
 
 NAME = server
 

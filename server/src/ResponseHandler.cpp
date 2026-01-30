@@ -236,29 +236,6 @@ static bool uploadEnabled(struct Location *loc)
 	return false;
 }
 
-//static long long maxBodySize(struct Config serverConf)
-//{
-//	long long body_size = atoll(serverConf.directives["max_body_size"][0].c_str());
-//	return body_size;
-//}
-
-//static std::string contetnType(HttpRequest req)
-//{
-//	std::string multiPart = req.getHeader()["Content-Type"];
-//	return multiPart;
-//}
-
-
-
-
-void ResponseHandler::handleUpload(const HttpRequest &req, const Config &server)
-{
-	(void)req;
-	(void)server;
-	std::cout << "start to handle upload\n";
-
-}
-
 void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
 {
 	(void)server;

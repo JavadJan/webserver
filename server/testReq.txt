@@ -1,5 +1,6 @@
 curl -v -X POST -d "name=Bob&age=22" http://127.0.0.1:4545/form
 curl -v -X POST -d "name=Bob&age=22" http://127.0.0.1:4244/cgi/hello.sh
+curl -v -F "file=@out.txt" http://127.0.0.1:4244/upload
 
 2. test with net cat
 nc 127.0.0.1 4545
