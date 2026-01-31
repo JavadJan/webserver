@@ -21,7 +21,7 @@ poll_start_index(0)
 	for (size_t i = 0; i < servers.size(); i++)
 	{
 		struct addrinfo *tmp;
-		std::cout << "port: " << servers[i].port << std::endl;
+		//std::cout << "port: " << servers[i].port << std::endl;
 		int status = getaddrinfo(NULL, servers[i].port.c_str(), &hints, &tmp);
 		if (status != 0) {
 			std::cout << "getaddrinfo: " <<  gai_strerror(status) << std::endl;
@@ -211,6 +211,185 @@ void	Server::accept_new_connection(int listen_fd)
 	
 }
 
+
+//-----------------------------------------------------
+void Server::read_data_from_socket(int i)
+{
+    char  chunk[BUFSIZ];
+    int   bytes_read = -1;
+    int   sender_fd = poll_fds[i].fd;
+
+    HttpRequest &req = http_req[sender_fd];
+
+    std::cout << "STATE before recv on fd " << sender_fd
+              << ": " << req.getState() << std::endl;
+
+    // If we are currently sending a response, ignore reads
+    if (req.getState() == HttpRequest::SENDING)
+        return;
+
+    // If already in ERROR, don't read more
+    if (req.getState() == HttpRequest::ERROR)
+        return;
+
+    memset(chunk, 0, sizeof(chunk));
+    bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
+
+    if (bytes_read > 0)
+    {
+        std::cout << "\n[" << sender_fd << "] Got message: start ----->\n"
+                  << std::string(chunk, sizeof(chunk)) << "\n<----------end request\n\n";
+
+        // Append to request buffer
+        req.appendBuffer(chunk, bytes_read);
+
+        // Hard header size limit
+        if (req.getHeaderSize() > MAX_HEADER_SIZE)
+        {
+            std::cout << "header size too large: "
+                      << req.getHeaderSize() << std::endl;
+            req.setStatusCode(431);
+            req.setState(HttpRequest::ERROR);
+        }
+
+        // Run FSM only if not already in ERROR
+        if (req.getState() != HttpRequest::ERROR)
+            fsm(sender_fd);
+
+        std::cout << "AFTER FSM state: " << req.getState()
+                  << ", buffer size " << req.getBuffer().size()
+                  << ", query: " << req.getQuery() << " MAX \n";
+
+        req.setClientSocket(sender_fd);
+
+        // Only build/send a response when FSM is DONE or ERROR
+        if (req.getState() == HttpRequest::DONE ||
+            req.getState() == HttpRequest::ERROR)
+        {
+            std::cout << "\n\nHTTP REQ AFTER FSM: "
+                      << req.getStatusCode() << std::endl;
+
+            ResponseHandler rh;
+            std::string response;
+
+            // Only call controller if not in ERROR
+            if (req.getState() != HttpRequest::ERROR)
+            {
+                std::cout << "\033[1;33m state " << req.getState()
+                          << " can be body state\033[0m\n";
+                rh.controller(req, *req.getServerConfig());
+            }
+
+            if (req.getState() == HttpRequest::ERROR)
+                rh.getResponse().setHeader("Connection", "close");
+
+            rh.finalize(req, *req.getServerConfig());
+            response = rh.getResponse().toString();
+
+            std::cout << "response: " << response << std::endl;
+
+            req.sendBuffer = response;
+            req.sendOffset = 0;
+            req.setState(HttpRequest::SENDING);
+
+            // We now want to write on this fd
+            set_poll_events(sender_fd, POLLOUT | POLLIN);
+
+			/* -------TEST different keep-alive ---------------- */
+			// [TEST] close conection after frist response to prevent browser to keep-alive
+			rh.getResponse().setHeader("Connection", "close");
+			req.shouldClose = true;
+			/* ---------------------------TEST---------------- */
+
+        }
+    }
+    else
+    {
+        if (bytes_read == 0)
+        {
+            // Client closed connection
+            close(sender_fd);
+            http_req.erase(sender_fd);
+            del_from_poll_fds(i);
+            return;
+        }
+
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            // No data available now
+            std::cout << "state is " << req.getState()
+                      << " but errno " << strerror(errno) << "\n";
+            return;
+        }
+
+        // Real error
+        std::cerr << "RECV " << strerror(errno) << std::endl;
+        close(sender_fd);
+        http_req.erase(sender_fd);
+        del_from_poll_fds(i);
+        return;
+    }
+}
+
+void Server::write_data_to_socket(int i)
+{
+    int fd = poll_fds[i].fd;
+    HttpRequest &req = http_req[fd];
+
+    if (req.getState() != HttpRequest::SENDING)
+        return;
+
+    ssize_t n = send(fd, req.sendBuffer.data() + req.sendOffset,
+                     req.sendBuffer.size() - req.sendOffset,
+                     0);
+
+    if (n > 0)
+    {
+        req.sendOffset += n;
+    }
+    else if (n == -1)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return;
+
+        // Real send error
+        cleanup_client(i, fd);
+        return;
+    }
+
+    // Finished sending the whole response?
+    if (req.sendOffset >= req.sendBuffer.size())
+    {
+        req.sendBuffer.clear();
+        req.sendOffset = 0;
+
+        std::cout << fd << " prepare to READ after send occured\n";
+
+        // Decide whether to close or keep-alive
+        std::map<std::string, std::string>::const_iterator it =
+            req.getHeader().find("connection");
+
+        bool close_conn = req.shouldClose ||
+                          (it != req.getHeader().end() &&
+                           it->second == "close");
+
+        if (close_conn)
+        {
+            cleanup_client(i, fd);
+            return;
+        }
+		std::cout << "[TEST] hanging here\n";
+        // Keep-alive: prepare for next request
+        req.resetForNextRequest();      // clears state, body, etc.
+		std::cout << "[TEST] after resetForRequest() hanging here\n";
+        set_poll_events(fd, POLLIN);    // only read next
+		std::cout << "[TEST] after set_poll_event() hanging here \n" 
+			<< "content-length: " << req.getContetnLen() << "body size: " << req.getBody().size() << std::endl;
+		//return ;
+    }
+	
+}
+
 //void	Server::read_data_from_socket(int i)
 //{
 	
@@ -374,171 +553,8 @@ void	Server::accept_new_connection(int listen_fd)
 //        }
 //    }
 //}
-void Server::read_data_from_socket(int i)
-{
-    char  chunk[BUFSIZ];
-    int   bytes_read = -1;
-    int   sender_fd = poll_fds[i].fd;
 
-    HttpRequest &req = http_req[sender_fd];
 
-    std::cout << "STATE before recv on fd " << sender_fd
-              << ": " << req.getState() << std::endl;
-
-    // If we are currently sending a response, ignore reads
-    if (req.getState() == HttpRequest::SENDING)
-        return;
-
-    // If already in ERROR, don't read more
-    if (req.getState() == HttpRequest::ERROR)
-        return;
-
-    memset(chunk, 0, sizeof(chunk));
-    bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
-
-    if (bytes_read > 0)
-    {
-        std::cout << "\n[" << sender_fd << "] Got message: start ----->\n"
-                  << chunk << "\n<----------end request\n\n";
-
-        // Append to request buffer
-        req.appendBuffer(chunk, bytes_read);
-
-        // Hard header size limit
-        if (req.getHeaderSize() > MAX_HEADER_SIZE)
-        {
-            std::cout << "header size too large: "
-                      << req.getHeaderSize() << std::endl;
-            req.setStatusCode(431);
-            req.setState(HttpRequest::ERROR);
-        }
-
-        // Run FSM only if not already in ERROR
-        if (req.getState() != HttpRequest::ERROR)
-            fsm(sender_fd);
-
-        std::cout << "AFTER FSM state: " << req.getState()
-                  << ", buffer size " << req.getBuffer().size()
-                  << ", query: " << req.getQuery() << " MAX \n";
-
-        req.setClientSocket(sender_fd);
-
-        // Only build/send a response when FSM is DONE or ERROR
-        if (req.getState() == HttpRequest::DONE ||
-            req.getState() == HttpRequest::ERROR)
-        {
-            std::cout << "\n\nHTTP REQ AFTER FSM: "
-                      << req.getStatusCode() << std::endl;
-
-            ResponseHandler rh;
-            std::string response;
-
-            // Only call controller if not in ERROR
-            if (req.getState() != HttpRequest::ERROR)
-            {
-                std::cout << "\033[1;33m state " << req.getState()
-                          << " can be body state\033[0m\n";
-                rh.controller(req, *req.getServerConfig());
-            }
-
-            if (req.getState() == HttpRequest::ERROR)
-                rh.getResponse().setHeader("Connection", "close");
-
-            rh.finalize(req, *req.getServerConfig());
-            response = rh.getResponse().toString();
-
-            std::cout << "response: " << response << std::endl;
-
-            req.sendBuffer = response;
-            req.sendOffset = 0;
-            req.setState(HttpRequest::SENDING);
-
-            // We now want to write on this fd
-            set_poll_events(sender_fd, POLLOUT | POLLIN);
-        }
-    }
-    else
-    {
-        if (bytes_read == 0)
-        {
-            // Client closed connection
-            close(sender_fd);
-            http_req.erase(sender_fd);
-            del_from_poll_fds(i);
-            return;
-        }
-
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-        {
-            // No data available now
-            std::cout << "state is " << req.getState()
-                      << " but errno " << strerror(errno) << "\n";
-            return;
-        }
-
-        // Real error
-        std::cerr << "RECV " << strerror(errno) << std::endl;
-        close(sender_fd);
-        http_req.erase(sender_fd);
-        del_from_poll_fds(i);
-        return;
-    }
-}
-
-void Server::write_data_to_socket(int i)
-{
-    int fd = poll_fds[i].fd;
-    HttpRequest &req = http_req[fd];
-
-    if (req.getState() != HttpRequest::SENDING)
-        return;
-
-    ssize_t n = send(fd,
-                     req.sendBuffer.data() + req.sendOffset,
-                     req.sendBuffer.size() - req.sendOffset,
-                     0);
-
-    if (n > 0)
-    {
-        req.sendOffset += n;
-    }
-    else if (n == -1)
-    {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return;
-
-        // Real send error
-        cleanup_client(i, fd);
-        return;
-    }
-
-    // Finished sending the whole response?
-    if (req.sendOffset >= req.sendBuffer.size())
-    {
-        req.sendBuffer.clear();
-        req.sendOffset = 0;
-
-        std::cout << fd << " prepare to READ after send occured\n";
-
-        // Decide whether to close or keep-alive
-        std::map<std::string, std::string>::const_iterator it =
-            req.getHeader().find("connection");
-
-        bool close_conn = req.shouldClose ||
-                          (it != req.getHeader().end() &&
-                           it->second == "close");
-
-        if (close_conn)
-        {
-            cleanup_client(i, fd);
-            return;
-        }
-
-        // Keep-alive: prepare for next request
-        req.resetForNextRequest();      // clears state, body, etc.
-        set_poll_events(fd, POLLIN);    // only read next
-    }
-}
 
 
 

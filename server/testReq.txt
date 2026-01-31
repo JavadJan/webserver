@@ -3,6 +3,9 @@ curl -v -X POST -d "name=Bob&age=22" http://127.0.0.1:4244/cgi/hello.sh
 curl -v -F "file=@out.txt" http://127.0.0.1:4244/upload
 curl -v -F "file=@img.png" http://127.0.0.1:4245/upload
 
+curl -X DELETE http://localhost:4245/upload/test.txt -v
+
+
 2. test with net cat
 nc 127.0.0.1 4545
 GET / HTTP/1.1

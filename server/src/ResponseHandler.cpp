@@ -1,5 +1,10 @@
 #include "../include/ResponseHandler.hpp"
 #include "../include/Config.hpp" // to use location and config
+#include <fstream>
+#include <sstream>
+#include <sys/stat.h>
+#include <cstdlib>
+#include <dirent.h>
 
 //------------------------------#
 //			constructors		#
@@ -221,14 +226,67 @@ void ResponseHandler::handleGet()
 
 void ResponseHandler::handleDelete()
 {
-	/// remain
+    struct stat st;
+
+    // Check if path exists
+    if (stat(full_path.c_str(), &st) == -1)
+    {
+        res.setStatusCode(404); // Not Found
+        return;
+    }
+
+    // Reject directories
+    if (S_ISDIR(st.st_mode))
+    {
+        res.setStatusCode(403); // Forbidden
+        return;
+    }
+
+    // Check write permission
+    if (access(full_path.c_str(), W_OK) == -1)
+    {
+        if (errno == EACCES || errno == EPERM)
+        {
+            res.setStatusCode(403); // Forbidden
+            return;
+        }
+    }
+
+    // Attempt deletion
+    if (remove(full_path.c_str()) == 0)
+    {
+        res.setStatusCode(204); // No Content
+        return;
+    }
+
+    // Map errno to correct HTTP status
+    switch (errno)
+    {
+        case EACCES:
+        case EPERM:
+        case EROFS:
+            res.setStatusCode(403); // Forbidden
+            break;
+        case ENOENT:
+            res.setStatusCode(404); // Not Found
+            break;
+        case EBUSY:
+            res.setStatusCode(423); // BUSY 
+            break;
+        default:
+            res.setStatusCode(500); // Internal Server Error
+            break;
+    }
 }
+
 
 static bool uploadEnabled(struct Location *loc)
 {
+	if (loc == NULL)
+		return false;
 	//// reamin
 	std::map<std::string, std::vector<std::string> >::const_iterator obj = loc->directive.find("allow_upload");
-	if (obj->second[0] == "on")
+	if (obj != loc->directive.end() && !obj->second.empty() && obj->second[0] == "on")
 	{
 		return true; 
 	}	

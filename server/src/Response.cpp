@@ -55,6 +55,7 @@ std::string Response::reasonPhrase(int code)
         case 501: return "Not Implemented";
 		case 413: return "Payload Too Large";
 		case 431: return "Request Header Fields Too Large";
+		case 423: return "Busy, Locked";
         default:  return "Error";
     }
 }
