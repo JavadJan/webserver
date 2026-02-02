@@ -10,8 +10,19 @@
 //			constructors		#
 //------------------------------#
 ResponseHandler::ResponseHandler()
+:res(),
+loc(),
+full_path(),
+root(),
+cgiScript(),
+headerCGI(),
+bodyCGI(),
+has_loc(false)
 {
-} // ResponseHandler to this request, this req has the socket fd
+
+}
+
+// ResponseHandler to this request, this req has the socket fd
 ResponseHandler::~ResponseHandler()
 {
 }
@@ -28,14 +39,18 @@ ResponseHandler &ResponseHandler::operator=(const ResponseHandler &other)
 	return (*this);
 }
 
-void ResponseHandler::setLocation(Location *location)
+
+void ResponseHandler::setLocation(const Location& l)
 {
-	this->loc = location;
+    loc = l;        // copy by value
+    has_loc = true;
 }
-Location* ResponseHandler::getLocation() const
+
+const Location& ResponseHandler::getLocation() const
 {
-	return this->loc;
+    return loc;
 }
+
 
 //------------------------------#
 //			methods, main		#
@@ -136,7 +151,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		return ;
 	}
 	
-	this->setLocation(&location);
+	this->setLocation(location);
 	
 		//full_path = resolvePath(req.getPath(), location); // 
 	full_path = resolvePath(req.getPath(), location);
@@ -154,7 +169,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		if (isCGI())
 			handleCGI(req, server);
 		else
-			handleGet();
+			handleGet(req);
 		return ;
 	}
 	else if (req.getMethod() == "POST")
@@ -175,9 +190,80 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	}	
 }
 
+static bool autoIndex(struct Location &loc)
+{
+	//// reamin
+	std::map<std::string, std::vector<std::string> >::const_iterator obj = loc.directive.find("autoindex");
+	if (obj != loc.directive.end() && !obj->second.empty() && obj->second[0] == "on")
+	{
+		return true; 
+	}	
+	//confServer.locations.
+	return false;
+}
+
+std::string ResponseHandler::generateAutoindex(const std::string& dirpath, const std::string& urlpath)
+{
+    DIR* dir = opendir(dirpath.c_str());
+    if (!dir)
+	{
+		res.setStatusCode(403);
+		res.setBody("Forbidden");
+		return "<h1>Forbidden</h1>";
+	}
+
+    std::stringstream html;
+
+    html << "<html><head><title>Index of " << urlpath << "</title></head><body>";
+    html << "<h1>Index of " << urlpath << "</h1><hr><pre>";
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        std::string name = entry->d_name;
+
+        // skip . and ..
+        if (name == ".")
+            continue;
+
+        std::string full = dirpath + "/" + name;
+
+        struct stat st;
+        stat(full.c_str(), &st);
+
+        if (S_ISDIR(st.st_mode))
+            name += "/";
+
+        html << "<a href=\"" << name << "\">" << name << "</a>\n";
+    }
+
+    html << "</pre><hr></body></html>";
+
+    closedir(dir);
+    return html.str();
+}
+
+std::string getMimeType(const std::string& path)
+{
+    size_t dot = path.rfind('.');
+    if (dot == std::string::npos)
+        return "application/octet-stream";
+
+    std::string ext = path.substr(dot + 1);
+
+    if (ext == "html" || ext == "htm") return "text/html";
+    if (ext == "css") return "text/css";
+    if (ext == "js") return "application/javascript";
+    if (ext == "png") return "image/png";
+    if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
+    if (ext == "gif") return "image/gif";
+    if (ext == "txt") return "text/plain";
+
+    return "application/octet-stream"; // default binary
+}
 
 // 
-void ResponseHandler::handleGet()
+void ResponseHandler::handleGet(const HttpRequest& req)
 {
 	struct stat st;
 	std::cout << "full path: " << full_path << std::endl;
@@ -199,18 +285,27 @@ void ResponseHandler::handleGet()
 	if (S_ISDIR(st.st_mode))
     {
         // Try index.html
-        std::string index = full_path + "/index.html";
-        if (stat(index.c_str(), &st) == 0)
-            full_path = index;
-        else
-        {
-            res.setStatusCode(403);
-            res.setBody("Forbidden");
-            return;
-        }
+		std::string index = full_path + "/index.html";
+		if (stat(index.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+			full_path = index;
+		else if (autoIndex(loc))
+		{
+			std::string html = generateAutoindex(full_path, req.getPath());
+			res.setAutoindex(true); // special status just for autoindex
+			res.setStatusCode(200); // in response generate the file, not write just send a tem file
+			res.setBody(html);
+			return ;
+		}
+		else
+		{
+			res.setStatusCode(403);
+			res.setBody("Forbidden");
+			return;
+
+		}
     }
 	//regular file
-	std::ifstream file(full_path.c_str()); // here read why?
+	std::ifstream file(full_path.c_str(), std::ios::binary);
     if (!file)
     {
         res.setStatusCode(403);
@@ -222,6 +317,8 @@ void ResponseHandler::handleGet()
 
     res.setStatusCode(200); // set the correct status
     res.setBody(buffer.str());
+	res.setContType(getMimeType(full_path));
+	std::cout << "CONTENT TYPE: " << req.getContentType() << std::endl;
 }
 
 void ResponseHandler::handleDelete()
@@ -280,18 +377,18 @@ void ResponseHandler::handleDelete()
 }
 
 
-static bool uploadEnabled(struct Location *loc)
+static bool uploadEnabled(const Location &loc)
 {
-	if (loc == NULL)
-		return false;
-	//// reamin
-	std::map<std::string, std::vector<std::string> >::const_iterator obj = loc->directive.find("allow_upload");
-	if (obj != loc->directive.end() && !obj->second.empty() && obj->second[0] == "on")
-	{
-		return true; 
-	}	
-	//confServer.locations.
-	return false;
+    if (loc.path.empty())
+        return false;
+    //// reamin
+    std::map<std::string, std::vector<std::string> >::const_iterator obj = loc.directive.find("allow_upload");
+    if (obj != loc.directive.end() && !obj->second.empty() && obj->second[0] == "on")
+    {
+        return true; 
+    }	
+    //confServer.locations.
+    return false;
 }
 
 void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)

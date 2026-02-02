@@ -2,7 +2,7 @@
 //------------------------------#
 //			constructors		#
 //------------------------------#
-Response::Response():statusCode(404), body("")
+Response::Response():statusCode(404), body(""), autoindex(false)
 {
 
 } // response to this request, this req has the socket fd
@@ -20,12 +20,20 @@ Response &Response::operator=(const Response &other)
 		this->statusCode = other.statusCode;
 		this->body = other.body;
 		this->header = other.header;
+		this->autoindex = other.autoindex;
 	}
 	return *this;
 }
 //------------------------------#
 //			getters				#
 //------------------------------#
+bool Response::getAutoindex() const
+{
+	return this->autoindex;
+}
+
+
+
 std::string Response::getBody() const 
 {
 	return this->body;
@@ -39,6 +47,10 @@ std::map<std::string, std::string> Response::getHeader() const
 //------------------------------#
 //			methods				#
 //------------------------------#
+void Response::setAutoindex(bool autoIndex)
+{
+	this->autoindex = autoIndex;
+} 
 std::string Response::reasonPhrase(int code)
 {
 	std::cout << "status code in creattion res: " << code << std::endl;
@@ -80,16 +92,28 @@ int Response::getStatusCode() const {
 	return this->statusCode;
 }
 
+std::string Response::getContType() const
+{
+	return this->ContentType;
+}
+
+void Response::setContType(std::string s)
+{
+	this->ContentType = s;
+}
+
 std::string Response::toString()
 {
     std::stringstream ss;
 
     ss << "HTTP/1.1 " << getStatusCode() << " " << reasonPhrase(getStatusCode()) << "\r\n";
     ss << "Content-Length: " << body.size() << "\r\n";
-    ss << "Content-Type: text/html\r\n";
+    ss << "Content-Type: ";
+	ss << getContType();
+	ss << "\r\n";
 	//ss << "Set-Cookie: yummy_cookie=chocolate\r\n";
     ss << "\r\n";
-    ss << body;
+	ss << body;
 
     return ss.str();
 }

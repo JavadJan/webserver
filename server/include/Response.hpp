@@ -10,6 +10,8 @@ class Response{
 		int statusCode;
 		std::string body;
 		std::map<std::string, std::string> header;
+		bool autoindex;
+		std::string ContentType;
 	public:
 		Response();
 		~Response();
@@ -18,12 +20,17 @@ class Response{
 		/* methods */
 		std::string reasonPhrase(int status);
 		std::string toString(); // to string
+
 		int getStatusCode() const;
+		bool getAutoindex() const;
 		std::string getBody() const;
 		std::map<std::string, std::string> getHeader() const;
+		std::string getContType() const;
 
 		/* setter */
 		void setStatusCode(int status);
+		void setContType(std::string type);
+		void setAutoindex(bool index);
 		void setBody(std::string body);
 		void setHeader(std::map<std::string, std::string> header);
 		void setHeader(const std::string& key, const std::string& value);

@@ -8,7 +8,7 @@
 #include <cstdlib>      // for std::exit
 #include <set>
 #include <queue>
-
+#include <signal.h>
 // POSIX headers (no C++ equivalents)
 #include <fcntl.h>
 #include <unistd.h>
@@ -80,7 +80,9 @@ class Server{
 		void fsm(int sock_fd); // control strea string from TCP
 		/* in each state I remove after complition STATE */
 	public:
-		
+		static int stop_flag;
+		static void signal_handler(int sig);
+		void shutdown_all_clients();
 		Server(std::vector<struct Config> serversConfig);
 		~Server();
 		void setServerConfig(Config conf);

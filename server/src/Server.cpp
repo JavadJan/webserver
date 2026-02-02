@@ -3,6 +3,8 @@
 #include "../include/Config.hpp"
 #include "../include/HttpRequest.hpp"
 #include "../include/ResponseHandler.hpp"
+//volatile sig_atomic_t Server::stop_flag = 0;
+int Server::stop_flag = 0;
 
 //--------------------------------------#
 //		create server object			#
@@ -34,10 +36,10 @@ poll_start_index(0)
 
 Server::~Server()
 {
-	//for (size_t i = 0; i < res.size(); i++)
-	//{
-	//	freeaddrinfo(res[i]);
-	//}
+	for (size_t i = 0; i < servers.size(); i++)
+	{
+		freeaddrinfo(res[i]);
+	}
 }
 
 static void set_nonblocking(int fd)
@@ -120,7 +122,7 @@ void Server::run()
 	create_socket_bind();
 	int status;
 
-	while (1)
+	while (!Server::stop_flag)
 	{ // Main loop
 		// Poll sockets to see if they are ready (2 second timeout)
 		for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
@@ -130,9 +132,16 @@ void Server::run()
 
 		if (status == -1)
 		{
-			std::cerr << "[Server] Poll error: \n" << strerror(errno);
+			if (errno == EINTR)
+			{
+				if (Server::stop_flag)
+					break;
+				continue; // retry poll
+			}
+			std::cerr << "[Server] Poll error: " << strerror(errno) << "\n";
 			throw ExceptionServer();
 		}
+
 		else if (status == 0)
 		{
 			// None of the sockets are ready
@@ -177,7 +186,22 @@ void Server::run()
 		// next time i start from the index
 		poll_start_index = (poll_start_index + 1) % (poll_fds.empty() ? 1 : poll_fds.size());
 	}
+	shutdown_all_clients();
 }
+
+void Server::shutdown_all_clients()
+{
+    for (size_t i = 0; i < poll_fds.size(); ++i)
+    {
+        int fd = poll_fds[i].fd;
+        if (fd >= 0)
+            close(fd);
+    }
+
+    poll_fds.clear();
+    http_req.clear();
+}
+
 
 const char* Server::ExceptionServer::what() const throw(){
 	return ("Faile to creation server!");
@@ -590,4 +614,9 @@ void Server::cleanup_client(int index, int fd)
     close(fd);
     http_req.erase(fd);
     del_from_poll_fds(index);
+}
+
+void Server::signal_handler(int)
+{
+    Server::stop_flag = 1;
 }

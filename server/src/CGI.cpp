@@ -52,9 +52,9 @@ std::string ResponseHandler::scriptCGI()
     std::string ext = full_path.substr(dot);
 
     std::map<std::string, std::vector<std::string> >::const_iterator it =
-        this->loc->directive.find("cgi");
+        this->loc.directive.find("cgi");
 
-	if (it == this->loc->directive.end())
+	if (it == this->loc.directive.end())
         return "";
 		
 		const std::vector<std::string>& v = it->second;
@@ -116,16 +116,6 @@ std::vector<char*> ResponseHandler::buildCGIEnv(const HttpRequest& req, const Co
     return env;
 }
 
-//std::string ResponseHandler::parseOutBufferCGI(std::string outBuf)
-//{
-//	size_t pos = outBuf.find("\r\n\r\n");
-//	if (pos == std::string::npos)
-//		pos = outBuf.find("\n\n");
-
-//	std::string cgiHeaders = outBuf.substr(0, pos);
-//	std::string cgiBody = outBuffer.substr(pos + 2);
-
-//}
 
 void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 {
@@ -134,9 +124,10 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 	int in_fd[2];	// for reading body post
 	int statusChild = -1;
 	char* script = dupString(scriptCGI()); // or getCGIScript()
+	char* script_path = dupString(full_path); // or getCGIScript()
 	char* argv[] = {
 		script,                 // interpreter
-		dupString(full_path),   // script file
+		script_path,   // script file
 		NULL
 	};
 
@@ -176,8 +167,8 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		if (execve(script, argv, &env[0]) == -1)
 		{
 			std::cout << "Failed to execve: " << strerror(errno) << std::endl;
-			//_exit(1); not allowed may be add exception later
-			return ;
+			_exit(1);
+			//return ;
 		}
 	}
 	else
@@ -204,15 +195,15 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 
 		if (WIFEXITED(statusChild))
         {
-                int code = WEXITSTATUS(statusChild);
-                if (code == 0)
-                {
-					res.setStatusCode(200);
-                }
-                else
-                {
-                    res.setStatusCode(500);
-                }
+			int code = WEXITSTATUS(statusChild);
+			if (code == 0)
+			{
+				res.setStatusCode(200);
+			}
+			else
+			{
+				res.setStatusCode(500);
+			}
         }
         //if (WIFSIGNALED(statusChild))
         //{
@@ -226,7 +217,7 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		//res.setStatusCode(200);
 		res.setBody(getBodyCGI());
 	}
-
+	delete[] script_path;
 	delete[] script;
 	for (size_t i = 0; i < env.size(); ++i)
 		if (env[i] != NULL)
@@ -234,25 +225,56 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 }
 
 // CGI
+
+//bool ResponseHandler::isCGI()
+//{
+//	// extract extention *.ext
+//	// the request_line should be have .py? e.g., POST /cgi/file.py HTTP/1.1 ?
+//    size_t dot = full_path.rfind('.');
+//    if (dot == std::string::npos)
+//        return false;
+
+//	// .py and .php extention
+//    std::string ext = full_path.substr(dot);
+
+//	// the sever block has configured for cgi at all?
+//    std::map<std::string, std::vector<std::string> >::const_iterator it =
+//        this->loc->directive.find("cgi");
+
+//    if (it == this->loc->directive.end())
+//        return false;
+
+//	// find the specific extention cgi e.g., .py or .php: path==cgi .py
+//    const std::vector<std::string>& v = it->second;
+//    for (size_t i = 0; i + 1 < v.size(); i += 2)
+//    {
+//        if (v[i] == ext)
+//            return true;
+//    }
+
+//    return false;
+//}
+
 bool ResponseHandler::isCGI()
 {
-	// extract extention *.ext
-	// the request_line should be have .py? e.g., POST /cgi/file.py HTTP/1.1 ?
+    if (full_path.empty())
+        return false;
+
     size_t dot = full_path.rfind('.');
     if (dot == std::string::npos)
         return false;
 
-	// .py and .php extention
     std::string ext = full_path.substr(dot);
 
-	// the sever block has configured for cgi at all?
-    std::map<std::string, std::vector<std::string> >::const_iterator it =
-        this->loc->directive.find("cgi");
-
-    if (it == this->loc->directive.end())
+    if (!has_loc)
         return false;
 
-	// find the specific extention cgi e.g., .py or .php: path==cgi .py
+    std::map<std::string, std::vector<std::string> >::const_iterator it =
+        loc.directive.find("cgi");
+
+    if (it == loc.directive.end())
+        return false;
+
     const std::vector<std::string>& v = it->second;
     for (size_t i = 0; i + 1 < v.size(); i += 2)
     {
@@ -262,6 +284,7 @@ bool ResponseHandler::isCGI()
 
     return false;
 }
+
 
 #pragma region 
 /* ----------------------------------------- */

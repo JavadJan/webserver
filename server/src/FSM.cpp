@@ -254,8 +254,11 @@ void Server::parseHeader(std::string buf, int sock_fd)
             return ;
 		}
 		key = to_lower(key);
+		//std::cout << "CONTENT_KEY " << key << ": " << "VALUE: " << value << std::endl;
 		if (key == "content-type")
+		{
 			http_req[sock_fd].setContentType(value);
+		}
 		
 		http_req[sock_fd].setHeader(key, value);
 	}

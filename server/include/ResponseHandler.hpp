@@ -26,21 +26,24 @@ class ResponseHandler
 {
   private:
 	Response res;
-	struct Location* loc;
+	struct Location loc;
 	std::string full_path; // helper to track macth: server|location|path|mathod
 	std::string root;
 	std::string cgiScript;
 	std::string headerCGI;
 	std::string bodyCGI;
+	bool has_loc;
   public:
 	ResponseHandler(); // response to this request, this req has the socket fd
 	~ResponseHandler();
 	ResponseHandler(const ResponseHandler &res);
 	ResponseHandler &operator=(const ResponseHandler &other);
 
+	std::string generateAutoindex(const std::string& dirpath, const std::string& urlpath);
 	/* --------setter */
-	void setLocation(Location* location); // setter for loc
-	Location* getLocation()const; // setter for loc
+	void setLocation(const Location& l); // setter for loc
+	const Location& getLocation()const; // setter for loc
+
 	void setSendBuffer(std::string str);
 	void setOffset(size_t offset);
 	void setRoot(const std::string& _root);
@@ -58,7 +61,7 @@ class ResponseHandler
 	void controller(const HttpRequest &req,	struct Config servers);
 	bool path_exist(std::string full_path);
 	void finalize(const HttpRequest &req, const Config& servers);
-	void handleGet();
+	void handleGet(const HttpRequest &req);
 	void handlePost(const HttpRequest &req, const Config &server);
 	void handleDelete();
 	void handleCGI(const HttpRequest &req, const Config &server);
