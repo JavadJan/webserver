@@ -68,6 +68,8 @@ std::string Response::reasonPhrase(int code)
 		case 413: return "Payload Too Large";
 		case 431: return "Request Header Fields Too Large";
 		case 423: return "Busy, Locked";
+		case 504: return "Gateway Timeout";
+		case 503: return "Service Unavailable";
         default:  return "Error";
     }
 }

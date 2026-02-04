@@ -14,6 +14,7 @@
 #include <cstring>
 #include <sys/wait.h>
 #include "./Response.hpp" // for response to
+#include "./Server.hpp" // for response to
 #include <dirent.h>
 
 struct PartInfo

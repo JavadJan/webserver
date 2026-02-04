@@ -122,7 +122,7 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 	std::vector<char *> env = buildCGIEnv(req, server);
 	int out_fd[2]; // for run script to parent
 	int in_fd[2];	// for reading body post
-	int statusChild = -1;
+	//int statusChild = -1;
 	char* script = dupString(scriptCGI()); // or getCGIScript()
 	char* script_path = dupString(full_path); // or getCGIScript()
 	char* argv[] = {
@@ -173,48 +173,87 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 	}
 	else
 	{
-		std::cout << "env: " << env[0] << std::endl;
 		close(in_fd[0]); // here write no nead to input
 		if (req.getMethod() == "POST")
 		{
 			write(in_fd[1], req.getBody().c_str(), req.getBody().size());
 		}
-		close(in_fd[1]);
-
 		// Parent process
 		close(out_fd[1]);
+
+		int flags = fcntl(out_fd[0], F_GETFL, 0); // the read should not be blocking
+		fcntl(out_fd[0], F_SETFL, flags | O_NONBLOCK);
+
 		char buffer[4096];
-		ssize_t bytesRead;
-		while ((bytesRead = read(out_fd[0], buffer, sizeof(buffer))) > 0)
+		std::string outBuffer;
+		int statusChild = -1;
+
+		int waited = 0;
+		bool timedOut = false;
+		bool interrupted = false;
+
+		while (true)
 		{
-			outBuffer.append(buffer, bytesRead);
+			// 1) Check for shutdown (Ctrl+C)
+			if (Server::stop_flag)
+			{
+				interrupted = true;
+				break;
+			}
+
+			// 2) Try to read any available CGI output (non-blocking)
+			ssize_t bytesRead = read(out_fd[0], buffer, sizeof(buffer));
+			if (bytesRead > 0)
+			{
+				outBuffer.append(buffer, bytesRead);
+			}
+
+			// 3) Check if child has exited
+			pid_t result = waitpid(pid, &statusChild, WNOHANG);
+			if (result == pid)
+			{
+				// child finished
+				break;
+			}
+			if (result == -1 && errno == EINTR)
+			{
+				// interrupted by signal, retry
+				continue;
+			}
+
+			// 4) Timeout logic
+			if (waited >= 3000) // e.g. 3000 * 1ms = 3 seconds
+			{
+				timedOut = true;
+				kill(pid, SIGKILL);
+				break;
+			}
+
+			usleep(1000); // sleep 1ms
+			waited++;
 		}
+
 		close(out_fd[0]);
-		waitpid(pid, &statusChild, 0);
-		parseOutBufferCGI(outBuffer);
 
-		if (WIFEXITED(statusChild))
-        {
+		if (interrupted)
+		{
+			res.setStatusCode(503); // Service Unavailable
+		}
+		else if (timedOut)
+		{
+			res.setStatusCode(504); // Gateway Timeout
+		}
+		else if (WIFEXITED(statusChild))
+		{
 			int code = WEXITSTATUS(statusChild);
-			if (code == 0)
-			{
-				res.setStatusCode(200);
-			}
-			else
-			{
-				res.setStatusCode(500);
-			}
-        }
-        //if (WIFSIGNALED(statusChild))
-        //{
-        //        sig = WTERMSIG(status);
-        //        if (verbose)
-        //                printf("Bad function: %s\n", strsignal(sig));
-        //        return (0);
-        //}
+			res.setStatusCode(code == 0 ? 200 : 500);
+		}
+		else if (WIFSIGNALED(statusChild))
+		{
+			res.setStatusCode(500);
+		}
 
-		
-		//res.setStatusCode(200);
+		parseOutBufferCGI(outBuffer);
 		res.setBody(getBodyCGI());
 	}
 	delete[] script_path;
