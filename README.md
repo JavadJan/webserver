@@ -1,108 +1,99 @@
-# webserver
+# Webserve
 
-[CONFIG] → Server reads host & port
-     |
-[SOCKET] → Server creates TCP socket
-     |
-[LISTEN] → Server listens for incoming connections
-     |
-[POLL LOOP] → Server monitors all sockets
-     |
-   +------------+
-   |            |
-[NEW CLIENT]  [EXISTING CLIENT]
-   |            |
-accept()      recv()
-   |            |
-add to poll    broadcast to other clients
+## Description
 
+Webserv is a custom HTTP server written in C++ as part of the 42 curriculum.
+The goal of this project is to build a fully functional web server compliant with HTTP/1.1, without using external libraries, and capable of handling multiple clients simultaneously.
 
+This project focuses on:
 
-/* blocks for up to 2000 milliseconds (2 seconds) waiting for any socket in poll_fds to become ready. It returns:
-     int ret = poll(poll_fds.data(), poll_fds.size(), 2000); // 2 second timeout
+- Low-level network programming
+- Event-driven I/O
+- HTTP protocol parsing
+- Configuration file parsing
+- Robust error handling
 
-            > 0: number of sockets with events
-            0: timeout (no activity in 2 seconds)
-            < 0: error
-     The 2-second timeout prevents the server from blocking forever—it periodically prints "Listening..." and checks again. */
+## Features
+- HTTP/1.1 compliant
+- Non-blocking I/O using poll() (or select() / epoll, depending on implementation)
+- Multiple client handling
+- Configurable server using a .conf file
+Supports:
+ -GET
+ -POST
+ -DELETE
 
----------------------------------------------------------------------------------
-HTTP is not a stream of messages, it is a protocol with structure:
+- Static file serving
+- CGI execution (e.g. PHP, Python)
+- Custom error pages
+- Directory listing (autoindex)
+- File upload support
+- Virtual servers (multiple ports / hosts)
 
-<request-line>\r\n
-<header: value>\r\n
-<header: value>\r\n
-\r\n
-<body...>
+## Configuration File
+The server is configured using a configuration file inspired by Nginx syntax.
 
+## Installation and Usage
+- Build
 
-So we must:
+- Run
 
-Read until we find \r\n\r\n → end of headers
+## Supported HTTP Methods
 
-Parse request-line
-
-Parse headers
-
-Decide if a body is required (POST, PUT)
-
-Store result in HttpRequest   
-
-------------------------------------------------------------------
-Why do we need clear() in Request?
-
-Because one TCP connection can contain multiple HTTP requests.
-
-This is called:
-
-🔥 HTTP Keep-Alive (persistent connections)
-
-Example:
-
-Client --- TCP connection open ---> Server
-
-GET /index.html HTTP/1.1
-Host: localhost
-
-GET /about HTTP/1.1
-Host: localhost
-
-POST /login HTTP/1.1
-Host: localhost
-Content-Length: 20
-
-username=bob&pw=123
+| Method | Description             |
+| ------ | ----------------------- |
+| GET    | Retrieve a resource     |
+| POST   | Send data to the server |
+| DELETE | Remove a resource       |
 
 
-All 3 requests can come through the same socket without closing the connection.
+## Architecture
 
--------------------------------------------------------------------------------------
------------Header Line---------------------------------------------------------------
-REQUEST LINE:
-  - Method
-  - Request target (URI)
-  - HTTP version
+-Socket layer
 
-HEADERS (zero or more):
-  - Host (required in HTTP/1.1)
-  - Connection
-  - User-Agent
-  - Accept / Accept-Encoding / Accept-Language
-  - Content-Type
-  - Content-Length
-  - Transfer-Encoding
-  - Cookie
-  - Authorization
-  - Range
-  - Expect
-  - Others…
+    -Server socket creation
 
-EMPTY LINE:
-  - CRLF (\r\n) to mark end of headers
+    -Client connection handling
 
-OPTIONAL BODY:
-  - Raw body
-  - JSON
-  - Form data
-  - Multipart data
-  - chunked-encoded body
+-Event loop
+
+    -Non-blocking polling
+
+    -Read / write multiplexing
+
+-Request parsing
+
+    -Headers
+
+    -Body
+
+    -Chunked encoding
+
+-Response generation
+
+    -Status codes
+
+    -Headers
+
+    -Body
+
+-CGI handler
+
+    -Environment setup
+
+    -Process execution
+
+- Configuration parser
+    -Server blocks
+    -Location blocks
+    -Validation
+
+## Testing
+The server was tested using:
+
+- curl
+- Web browsers (Firefox / Chrome)
+- Stress tests with multiple clients
+- Invalid requests and edge cases
+
+## Autors
