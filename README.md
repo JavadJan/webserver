@@ -1,7 +1,5 @@
 # Webserve
 
-## Description
-
 Webserv is a custom HTTP server written in C++ as part of the 42 curriculum.
 The goal of this project is to build a fully functional web server compliant with HTTP/1.1, without using external libraries, and capable of handling multiple clients simultaneously.
 
@@ -19,9 +17,9 @@ This project focuses on:
 - Multiple client handling
 - Configurable server using a .conf file
 - Supports:
- - GET
- - POST
- - DELETE
+    - GET
+    - POST
+    - DELETE
 
 - Static file serving
 - CGI execution (e.g. PHP, Python)
@@ -66,7 +64,8 @@ server {
 - Run
 ```
  bash
-./webserv config/default.conf
+    
+    ./webserv config/default.conf
 ```
 
 ## Supported HTTP Methods
@@ -80,16 +79,16 @@ server {
 
 ## Architecture
  ```
- +-------------+ +-----------------+
-| Client | <----> | Webserv Core |
-+-------------+ +-----------------+
-|
--------------------------------------------------
-| | | | |
-Socket Event Loop Request Response Config
-Layer (poll) Parser Generator Parser
-| |
-| CGI Handler
++-------------+        +-----------------+
+|   Client    | <----> |   Webserv Core  |
++-------------+        +-----------------+
+                                 |
+        -------------------------------------------------
+        |          |            |           |           |
+   Socket      Event Loop   Request     Response     Config
+   Layer       (poll)       Parser      Generator    Parser
+        |                        |
+        |                     CGI Handler
 
 ```
 
@@ -135,8 +134,8 @@ Example
  ```
  bash
 
-curl -X GET http://localhost:8080
-curl -X POST -d "hello=world" http://localhost:8080/upload
+    curl -X GET http://localhost:8080
+    curl -X POST -d "hello=world" http://localhost:8080/upload
 ```
 
 ## Autors
