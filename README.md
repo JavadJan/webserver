@@ -18,7 +18,7 @@ This project focuses on:
 - Non-blocking I/O using poll() (or select() / epoll, depending on implementation)
 - Multiple client handling
 - Configurable server using a .conf file
-Supports:
+- Supports:
  - GET
  - POST
  - DELETE
@@ -58,12 +58,14 @@ server {
 ## Installation and Usage
 
 - Build
-```bash
+```
+ bash
 
     make 
 ```
 - Run
 ```
+ bash
 ./webserv config/default.conf
 ```
 
@@ -77,49 +79,50 @@ server {
 
 
 ## Architecture
+ ```
+ +-------------+ +-----------------+
+| Client | <----> | Webserv Core |
++-------------+ +-----------------+
+|
+-------------------------------------------------
+| | | | |
+Socket Event Loop Request Response Config
+Layer (poll) Parser Generator Parser
+| |
+| CGI Handler
 
-+-------------+        +-----------------+
-|   Client    | <----> |   Webserv Core  |
-+-------------+        +-----------------+
-                                 |
-        -------------------------------------------------
-        |          |            |           |           |
-   Socket      Event Loop   Request     Response     Config
-   Layer       (poll)       Parser      Generator    Parser
-        |                        |
-        |                     CGI Handler
-
+```
 
 - Socket layer
 
-    -Server socket creation
-    -Client connection handling
+    - Server socket creation
+    - Client connection handling
 
 - Event loop
 
-    -Non-blocking polling
-    -Read / write multiplexing
+    - Non-blocking polling
+    - Read / write multiplexing
 
 - Request parsing
 
-    -Headers
-    -Body
-    -Chunked encoding
+    - Headers
+    - Body
+    - Chunked encoding
 
 - Response generation
 
-    -Status codes
-    -Headers
-    -Body
+    - Status codes
+    - Headers
+    - Body
 
 - CGI handler
-    -Environment setup
-    -Process execution
+    - Environment setup
+    - Process execution
 
 - Configuration parser
-    -Server blocks
-    -Location blocks
-    -Validation
+    - Server blocks
+    - Location blocks
+    - Validation
 
 ## Testing
 The server was tested using:
@@ -129,9 +132,10 @@ The server was tested using:
 - Stress tests with multiple clients
 - Invalid requests and edge cases
 Example
- ```bash
+ ```
+ bash
 
- curl -X GET http://localhost:8080
+curl -X GET http://localhost:8080
 curl -X POST -d "hello=world" http://localhost:8080/upload
 ```
 
