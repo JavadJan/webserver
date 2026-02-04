@@ -19,9 +19,9 @@ This project focuses on:
 - Multiple client handling
 - Configurable server using a .conf file
 Supports:
- -GET
- -POST
- -DELETE
+ - GET
+ - POST
+ - DELETE
 
 - Static file serving
 - CGI execution (e.g. PHP, Python)
@@ -32,11 +32,40 @@ Supports:
 
 ## Configuration File
 The server is configured using a configuration file inspired by Nginx syntax.
+Example:
+
+```conf
+server {
+    listen 8080;
+    server_name localhost;
+
+    root ./www;
+    index index.html;
+
+    location /upload {
+        methods POST;
+        upload_dir ./uploads;
+    }
+
+    location /cgi {
+        cgi_pass /usr/bin/php-cgi;
+    }
+
+    error_page 404 ./errors/404.html;
+}
+```
 
 ## Installation and Usage
-- Build
 
+- Build
+```bash
+
+    make 
+```
 - Run
+```
+./webserv config/default.conf
+```
 
 ## Supported HTTP Methods
 
@@ -49,38 +78,42 @@ The server is configured using a configuration file inspired by Nginx syntax.
 
 ## Architecture
 
--Socket layer
++-------------+        +-----------------+
+|   Client    | <----> |   Webserv Core  |
++-------------+        +-----------------+
+                                 |
+        -------------------------------------------------
+        |          |            |           |           |
+   Socket      Event Loop   Request     Response     Config
+   Layer       (poll)       Parser      Generator    Parser
+        |                        |
+        |                     CGI Handler
+
+
+- Socket layer
 
     -Server socket creation
-
     -Client connection handling
 
--Event loop
+- Event loop
 
     -Non-blocking polling
-
     -Read / write multiplexing
 
--Request parsing
+- Request parsing
 
     -Headers
-
     -Body
-
     -Chunked encoding
 
--Response generation
+- Response generation
 
     -Status codes
-
     -Headers
-
     -Body
 
--CGI handler
-
+- CGI handler
     -Environment setup
-
     -Process execution
 
 - Configuration parser
@@ -95,5 +128,11 @@ The server was tested using:
 - Web browsers (Firefox / Chrome)
 - Stress tests with multiple clients
 - Invalid requests and edge cases
+Example
+ ```bash
+
+ curl -X GET http://localhost:8080
+curl -X POST -d "hello=world" http://localhost:8080/upload
+```
 
 ## Autors
