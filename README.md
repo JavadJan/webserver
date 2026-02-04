@@ -30,6 +30,7 @@ This project focuses on:
 
 ## Configuration File
 The server is configured using a configuration file inspired by Nginx syntax.
+
 Example:
 
 ```conf
@@ -130,6 +131,7 @@ The server was tested using:
 - Web browsers (Firefox / Chrome)
 - Stress tests with multiple clients
 - Invalid requests and edge cases
+
 Example
  ```
  bash
@@ -138,4 +140,29 @@ Example
     curl -X POST -d "hello=world" http://localhost:8080/upload
 ```
 
-## Autors
+## ❌ Error Handling
+
+- Invalid HTTP requests
+- Unsupported methods
+- Missing files
+- Permission errors
+- CGI execution failures
+- Timeout handling
+
+Each error returns the appropriate HTTP status code and custom error page when configured.
+
+## 📚 Allowed Functions
+
+- socket, bind, listen, accept
+- recv, send
+- poll / select
+- fcntl
+- fork, execve, waitpid
+- open, read, write, close
+
+No external networking or HTTP libraries are used.
+
+## Autors & How AI was helpful in this project?
+- Javad:
+- Anatoli:
+- Maryam:
