@@ -16,9 +16,10 @@ server_fd(-1),
 poll_start_index(0)
 {
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;        // IPv4 or IPv6
+	//hints.ai_family = AF_UNSPEC;        // IPv4 or IPv6
+	hints.ai_family = AF_INET;        // IPv4
     hints.ai_socktype = SOCK_STREAM;    // TCP
-    hints.ai_flags = AI_PASSIVE;        // Automatically fills IP address
+	hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
 
 	for (size_t i = 0; i < servers.size(); i++)
 	{
@@ -31,6 +32,51 @@ poll_start_index(0)
 		}
 		res.push_back(tmp);
 	}
+	//std::cout << "=== SERVERS VECTOR ===" << std::endl;
+	//for (size_t i = 0; i < servers.size(); i++)
+	//{
+	//	std::cout << "servers[" << i << "].port = " << servers[i].port << std::endl;
+	//}
+	//std::cout << "=======================" << std::endl;
+
+	//for (size_t i = 0; i < servers.size(); i++)
+	//{
+	//	struct addrinfo *tmp;
+	//	int status = getaddrinfo(NULL, servers[i].port.c_str(), &hints, &tmp);
+	//	if (status != 0) {
+	//		std::cout << "getaddrinfo: " << gai_strerror(status) << std::endl;
+	//		throw ExceptionServer();
+	//	}
+
+	//	// Only keep the FIRST IPv4 entry
+	//	struct addrinfo* ipv4 = tmp;
+	//	while (ipv4 && ipv4->ai_family != AF_INET)
+	//		ipv4 = ipv4->ai_next;
+
+	//	if (!ipv4) {
+	//		std::cerr << "No IPv4 address for port " << servers[i].port << std::endl;
+	//		freeaddrinfo(tmp);
+	//		throw ExceptionServer();
+	//	}
+
+	//	// Store ONLY the IPv4 entry
+	//	res.push_back(ipv4);
+
+	//	// Free the entire addrinfo list returned by getaddrinfo
+	//	// Note: we must NOT use freeaddrinfo here because we're keeping ipv4
+	//	// Instead, manually free all except ipv4
+	//	struct addrinfo* p = tmp;
+	//	while (p) {
+	//		struct addrinfo* next = p->ai_next;
+	//		if (p != ipv4)
+	//			free(p);
+	//		p = next;
+	//	}
+		
+	//	// Disconnect ipv4 from the list to avoid double-free
+	//	ipv4->ai_next = NULL;
+	//}
+	
 	
 }
 
@@ -62,6 +108,67 @@ static void set_nonblocking(int fd)
 //		define socket, bind, listen		#
 //--------------------------------------#
 /* define socket, bind to ip:port, listen to port */
+//int Server::create_socket_bind()
+//{
+//	int status;
+
+//	poll_fds.clear();
+//	for (size_t i = 0; i < servers.size(); i++)
+//	{
+//		/* code */
+//		server_fd = socket(res[i]->ai_family, res[i]->ai_socktype, res[i]->ai_protocol);
+//		if (server_fd < 0)
+//		{
+//			std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
+//			continue;
+//			//return (-1);
+//		}
+//		/*Bind Error: Address already in use occurs because when a socket is closed,
+//			it stays in a kernel state called TIME_WAIT for several minutes. 
+//			setsockopt() tell the kernel reuse the port
+//		*/
+//		int opt = 1;
+//        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+//            std::cerr << "[Server] setsockopt Error: " << strerror(errno) << std::endl;
+//            close(server_fd);
+//            continue;
+//        }
+//		set_nonblocking(server_fd);
+//		// Bind socket to address and port
+//		std::cout << "Binding server[" << i << "] on port " 
+//          		<< servers[i].port 
+//          		<< " using fd=" << server_fd << std::endl;
+
+//		//std::cout << "fd: " << server_fd << " addr: " << res[i]->ai_addr << std::endl;
+//		status = bind(server_fd,  res[i]->ai_addr, res[i]->ai_addrlen);
+//		if (status != 0)
+//		{
+//			std::cout << "[Server] Bind Error: " << strerror(errno) << std::endl;
+//			return (-1);
+//		}
+//		//if (status == )
+//		status = listen(server_fd, 10);
+//		if (status != 0)
+//		{
+//			std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
+//			return (3);
+//		}
+		
+//		// list of socket
+//		pollfd serverPoll;
+//		serverPoll.fd = server_fd; // add server socket to pollfd
+//		serverPoll.events = POLLIN; // it won't block recv(); // PAY ATTENTION TO HERE FOR SAME READ AND WRITE
+//		serverPoll.revents = 0;
+	
+//		poll_fds.push_back(serverPoll);
+//		serverfd_config[server_fd] = servers[i]; // for every socket I created a server
+//	}
+//	if (poll_fds.empty())
+//        return -1;
+//	return 0;
+//}
+
+
 int Server::create_socket_bind()
 {
 	int status;
@@ -89,18 +196,25 @@ int Server::create_socket_bind()
         }
 		set_nonblocking(server_fd);
 		// Bind socket to address and port
+		std::cout << "Binding server[" << i << "] on port " 
+          		<< servers[i].port 
+          		<< " using fd=" << server_fd << std::endl;
+
+		//std::cout << "fd: " << server_fd << " addr: " << res[i]->ai_addr << std::endl;
 		status = bind(server_fd,  res[i]->ai_addr, res[i]->ai_addrlen);
 		if (status != 0)
 		{
-			std::cout << "[Server] Bind Error: " << strerror(errno) << std::endl;
-			return (-1);
+			std::cout << "[Server] Bind Error: " << servers[i].port << strerror(errno) << std::endl;
+			close(server_fd);
+			continue;
 		}
 		//if (status == )
 		status = listen(server_fd, 10);
 		if (status != 0)
 		{
 			std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
-			return (3);
+			close(server_fd);
+			continue;
 		}
 		
 		// list of socket

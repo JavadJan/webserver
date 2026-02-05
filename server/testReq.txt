@@ -5,6 +5,26 @@ curl -v -F "file=@img.png" http://127.0.0.1:4245/upload
 
 curl -X DELETE http://localhost:4245/upload/test.txt -v
 
+-------------------------------------------------------------
+nc 127.0.0.1 4244
+POST /cgi/hello.sh HTTP/1.1
+Host: localhost
+User-Agent: curl/8.0
+Accept: */*
+Transfer-Encoding: chunked
+Content-Type: application/x-www-form-urlencoded
+
+7
+name=Mj
+6
+avad&
+8
+lang=cpp
+0
+
+-----------------------------------------------------------------------
+printf "POST /cgi/hello.sh HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\n7\r\nname=Mj\r\n6\r\navad&\r\n8\r\nlang=cpp\r\n0\r\n\r\n" | nc 127.0.0.1 4244
+---------------------------
 
 2. test with net cat
 nc 127.0.0.1 4545

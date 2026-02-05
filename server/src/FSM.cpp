@@ -372,6 +372,8 @@ void Server::fsm(int sock_fd)
 
             // Decide next state based on method + Content-Length
             const std::map<std::string, std::string> &headers = req.getHeader();
+            std::map<std::string, std::string>::const_iterator itEN =
+                headers.find("transfer-encoding"); // after lower case
             std::map<std::string, std::string>::const_iterator it =
                 headers.find("content-length"); // after lower case
 
@@ -391,9 +393,17 @@ void Server::fsm(int sock_fd)
                     req.setState(HttpRequest::DONE);
                 }
             }
+            else if (itEN != headers.end())
+            {
+                // Transfer-Encoding: chunked - for now, set DONE
+                // TODO: implement chunked transfer encoding support
+				has_body = true;
+                req.setState(HttpRequest::BODY);
+            }
             else
             {
                 // No Content-Length → no body
+				std::cout << "nobody, but might chunked\n";
                 req.setState(HttpRequest::DONE);
             }
 
@@ -407,6 +417,7 @@ void Server::fsm(int sock_fd)
             const std::string &buf = req.getBuffer();
             size_t need = req.getContetnLen();
 			std::cout << "[LOG IN BODY STATE]  length: " << need << "|\n";
+			std::cout << "[LOG IN BODY STATE]  body: " << body << "|\n";
 			if (need == 0) // added later
 			{
 				req.setState(HttpRequest::DONE);
@@ -529,20 +540,21 @@ bool Server::validateHeaders(int fd)
     }
 
     // 2. Reject Transfer-Encoding (we don't support chunked)
-    if (headers.count("transfer-encoding"))
-    {
-        req.setStatusCode(501); // Not implemented
-        return false;
-    }
+	// now here I should iimplement this
+    //if (headers.count("transfer-encoding"))
+    //{
+    //    req.setStatusCode(501); // Not implemented
+    //    return false;
+    //}
 
     // 3. Content-Length validation
     std::map<std::string, std::string>::const_iterator it =
         headers.find("content-length");
-	
+    
     // POST must have Content-Length
     if (req.getMethod() == "POST")
     {
-        if (it == headers.end())
+        if (it == headers.end() && !headers.count("transfer-encoding"))
         {
             req.setStatusCode(411); // Length Required
             return false;

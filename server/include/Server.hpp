@@ -51,7 +51,7 @@ class Server{
 
 		/* track the state, smart state, persisit buffer per socket/client? */
 		std::map<int, HttpRequest> http_req; // for every socket should be created an objet of request
-		int start_body;
+		bool has_body;
 
 		/* for non-blocking */
 		std::vector<pollfd> poll_fds;

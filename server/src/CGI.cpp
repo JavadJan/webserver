@@ -63,7 +63,7 @@ std::string ResponseHandler::scriptCGI()
 	{
 		if (v[i] == ext)
 		{
-			std::cout << "CGI file to run: "  << v[i] << v[i + 1] << std::endl;
+			std::cout << "CGI file to run: "  << v[i+ 1] << "ext: " << v[i] << std::endl;
 			this->setCGIScript(v[i + 1]); // /usr/bin/
             return v[i + 1];
 		}
@@ -132,6 +132,7 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 	};
 
 	std::cout << "full_path to run script: " << full_path << std::endl;
+	std::cout << "body: " << req.getBody() << std::endl;
 	std::string outBuffer;
 	int state = pipe(out_fd);
 	int stateIn = pipe(in_fd);
