@@ -181,6 +181,7 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		}
 		// Parent process
 		close(out_fd[1]);
+		close(in_fd[1]); // if I don't add this line the script will wait for EOF
 
 		int flags = fcntl(out_fd[0], F_GETFL, 0); // the read should not be blocking
 		fcntl(out_fd[0], F_SETFL, flags | O_NONBLOCK);

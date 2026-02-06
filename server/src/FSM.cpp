@@ -263,6 +263,54 @@ void Server::parseHeader(std::string buf, int sock_fd)
 		http_req[sock_fd].setHeader(key, value);
 	}
 }
+std::string Server::unchunkedBody(const std::string& buf)
+{
+    std::string out = "";
+    std::string buffer = buf;
+
+    std::cout << "WHOLE BODY: " << buffer << "|" << std::endl;
+
+    while (!buffer.empty())
+    {
+        // 1. Find the end of the HEX size line
+        size_t line_end = buffer.find("\r\n");
+        if (line_end == std::string::npos) 
+            break; // Incomplete data
+
+        // 2. Parse hex size
+        std::string hex = buffer.substr(0, line_end);
+        char* endPtr;
+        long chunk_size = strtol(hex.c_str(), &endPtr, 16);
+        
+        std::cout << "Detected hex: [" << hex << "] size: " << chunk_size << std::endl;
+
+        // 3. Move buffer past the size line (\r\n)
+        buffer.erase(0, line_end + 2);
+
+        // 4. Check for terminal chunk
+        if (chunk_size == 0)
+        {
+            // Optional: The protocol expects one more \r\n after the 0
+            break; 
+        }
+
+        // 5. Safety: Check if buffer actually has enough data + trailing \r\n
+        if (buffer.size() < (size_t)chunk_size)
+            break; 
+
+        // 6. Extract the actual content
+        std::string chunk = buffer.substr(0, chunk_size);
+        out.append(chunk);
+        
+        std::cout << "Extracted Chunk: [" << chunk << "]" << std::endl;
+
+        // 7. Erase the chunk PLUS the \r\n that follows the chunk
+        // RFC: chunk-data + CRLF
+        buffer.erase(0, chunk_size + 2); 
+    }
+
+    return out;
+}
 
 
 
@@ -397,7 +445,7 @@ void Server::fsm(int sock_fd)
             {
                 // Transfer-Encoding: chunked - for now, set DONE
                 // TODO: implement chunked transfer encoding support
-				has_body = true;
+				body_chunked = true;
                 req.setState(HttpRequest::BODY);
             }
             else
@@ -415,34 +463,60 @@ void Server::fsm(int sock_fd)
         {
 			std::cout << "[LOG IN STATE BODY] getBuffer: " << req.getBuffer().size() << "\n";
             const std::string &buf = req.getBuffer();
-            size_t need = req.getContetnLen();
-			std::cout << "[LOG IN BODY STATE]  length: " << need << "|\n";
-			std::cout << "[LOG IN BODY STATE]  body: " << body << "|\n";
-			if (need == 0) // added later
+			std::string body;
+			size_t need = req.getContetnLen();
+			if (!body_chunked)
 			{
-				req.setState(HttpRequest::DONE);
-				return;
+				if (need == 0) // added later
+				{
+					req.setState(HttpRequest::DONE);
+					return;
+				}			
+				if (buf.size() < need)
+					return; // wait for more				
+				body = buf.substr(0, need);
+				
+				if (!validateBody(sock_fd, body))
+				{
+					std::cout << "ERROR IN BODY VALIDATION BODY \n"; 
+					req.setState(HttpRequest::ERROR);
+					req.shouldClose = true;
+					return;
+				}
+				std::cout << "[LOG IN BODY STATE]  no error after validation? : " << body << "\n";
+	
+				req.setBody(body);
+				consume(0, need, sock_fd);
 			}
-			std::cout << "[LOG IN BODY STATE]  length: " << need << "|\n";
-			
-            if (buf.size() < need)
-				return; // wait for more
-			std::cout << "[LOG IN BODY STATE]  length body complete? : " << need << "\n";
-			
-            std::string body = buf.substr(0, need);
-			std::cout << "[LOG IN BODY STATE]  length body complete? : " << body << "\n";
-			
-            if (!validateBody(sock_fd, body))
+            else
             {
-				std::cout << "ERROR IN BODY VALIDATION BODY \n"; 
-                req.setState(HttpRequest::ERROR);
-                req.shouldClose = true;
-                return;
-            }
-			std::cout << "[LOG IN BODY STATE]  no error after validation? : " << body << "\n";
+                size_t body_end = buf.find("0\r\n\r\n");
+				size_t terminator_len = 5; // "0" + "\r\n" + "\r\n"
 
-            req.setBody(body);
-            consume(0, need, sock_fd);
+				// Fallback for tools like nc that might only send \n
+				if (body_end == std::string::npos) {
+					body_end = buf.find("0\n\n");
+					terminator_len = 3;
+				}
+
+				if (body_end == std::string::npos)
+					return; // Data is incomplete, wait for next poll
+
+				// 2. Decode the FULL chunked block (from start to the end of terminator)
+				std::string raw_chunked_area = buf.substr(0, body_end + terminator_len);
+				std::string decoded = unchunkedBody(raw_chunked_area);
+
+				// 3. Validate the final resulting body size
+				if (!validateBody(sock_fd, decoded)) {
+					req.setState(HttpRequest::ERROR);
+					return;
+				}
+				
+				req.setBody(decoded);
+				
+				// 4. Consume the raw data from the buffer so it doesn't leak into the next request
+				consume(0, body_end + terminator_len, sock_fd);
+            }
 
             req.setState(HttpRequest::DONE);
             return;
@@ -634,8 +708,8 @@ bool Server::validateBody(int fd, const std::string &body)
     HttpRequest &req = http_req[fd];
     size_t len = req.getContetnLen();
 
-    // 1. Length mismatch
-    if (body.size() != len)
+    // 1. Length mismatch (only validate if not using chunked encoding)
+    if (!body_chunked && body.size() != len)
         return false;
 
     // 2. Too large (config)

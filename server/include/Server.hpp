@@ -51,7 +51,7 @@ class Server{
 
 		/* track the state, smart state, persisit buffer per socket/client? */
 		std::map<int, HttpRequest> http_req; // for every socket should be created an objet of request
-		bool has_body;
+		bool body_chunked;
 
 		/* for non-blocking */
 		std::vector<pollfd> poll_fds;
@@ -77,6 +77,7 @@ class Server{
 		void consume(size_t start, size_t end, int sock_fd);
 		void parseRequestLine(std::string buf, int sock_fd);
 		void parseHeader(std::string buf, int sock_fd);
+		std::string unchunkedBody(const std::string &buf);
 		void fsm(int sock_fd); // control strea string from TCP
 		/* in each state I remove after complition STATE */
 	public:

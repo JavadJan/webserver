@@ -13,6 +13,7 @@ int Server::stop_flag = 0;
 Server::Server(std::vector<struct Config> serversConfig)
 : servers(serversConfig),
 server_fd(-1),
+body_chunked(false),
 poll_start_index(0)
 {
 	memset(&hints, 0, sizeof(hints));
@@ -31,53 +32,7 @@ poll_start_index(0)
 			throw ExceptionServer();
 		}
 		res.push_back(tmp);
-	}
-	//std::cout << "=== SERVERS VECTOR ===" << std::endl;
-	//for (size_t i = 0; i < servers.size(); i++)
-	//{
-	//	std::cout << "servers[" << i << "].port = " << servers[i].port << std::endl;
-	//}
-	//std::cout << "=======================" << std::endl;
-
-	//for (size_t i = 0; i < servers.size(); i++)
-	//{
-	//	struct addrinfo *tmp;
-	//	int status = getaddrinfo(NULL, servers[i].port.c_str(), &hints, &tmp);
-	//	if (status != 0) {
-	//		std::cout << "getaddrinfo: " << gai_strerror(status) << std::endl;
-	//		throw ExceptionServer();
-	//	}
-
-	//	// Only keep the FIRST IPv4 entry
-	//	struct addrinfo* ipv4 = tmp;
-	//	while (ipv4 && ipv4->ai_family != AF_INET)
-	//		ipv4 = ipv4->ai_next;
-
-	//	if (!ipv4) {
-	//		std::cerr << "No IPv4 address for port " << servers[i].port << std::endl;
-	//		freeaddrinfo(tmp);
-	//		throw ExceptionServer();
-	//	}
-
-	//	// Store ONLY the IPv4 entry
-	//	res.push_back(ipv4);
-
-	//	// Free the entire addrinfo list returned by getaddrinfo
-	//	// Note: we must NOT use freeaddrinfo here because we're keeping ipv4
-	//	// Instead, manually free all except ipv4
-	//	struct addrinfo* p = tmp;
-	//	while (p) {
-	//		struct addrinfo* next = p->ai_next;
-	//		if (p != ipv4)
-	//			free(p);
-	//		p = next;
-	//	}
-		
-	//	// Disconnect ipv4 from the list to avoid double-free
-	//	ipv4->ai_next = NULL;
-	//}
-	
-	
+	}	
 }
 
 Server::~Server()
