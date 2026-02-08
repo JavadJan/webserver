@@ -1,0 +1,699 @@
+//#include "../include/ParsedData.hpp"
+#include "../include/Server.hpp"
+#include "../include/Config.hpp"
+#include "../include/HttpRequest.hpp"
+#include "../include/ResponseHandler.hpp"
+volatile sig_atomic_t Server::stop_flag = 0;
+
+//--------------------------------------#
+//		create server object			#
+//--------------------------------------#
+
+Server::Server(std::vector<struct Config> serversConfig)
+: servers(serversConfig),
+server_fd(-1),
+body_chunked(false),
+poll_start_index(0)
+{
+	memset(&hints, 0, sizeof(hints));
+	//hints.ai_family = AF_UNSPEC;        // IPv4 or IPv6
+	hints.ai_family = AF_INET;        // IPv4
+    hints.ai_socktype = SOCK_STREAM;    // TCP
+	hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+
+	for (size_t i = 0; i < servers.size(); i++)
+	{
+		struct addrinfo *tmp;
+		//std::cout << "port: " << servers[i].port << std::endl;
+		int status = getaddrinfo(NULL, servers[i].port.c_str(), &hints, &tmp);
+		if (status != 0) {
+			std::cout << "getaddrinfo: " <<  gai_strerror(status) << std::endl;
+			throw ExceptionServer();
+		}
+		res.push_back(tmp);
+	}	
+}
+
+Server::~Server()
+{
+	for (size_t i = 0; i < servers.size(); i++)
+	{
+		freeaddrinfo(res[i]);
+	}
+}
+
+static void set_nonblocking(int fd)
+{
+	// here the ftcntl() will return O_RDONLY, _WRONLY or O_NONBLOCK
+	// F_GETFL: Get File Status Flags
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        throw std::runtime_error("fcntl F_GETFL failed");
+
+	// if allready set as NONBLOCK then the flag will not set again
+	// keep every things exist and add O_NONBLOCK; append mode
+	// stand fot File CoNTroL
+	//F_SETFL: Set File Status Flags
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+        throw std::runtime_error("fcntl F_SETFL failed");
+}
+
+//--------------------------------------#
+//		define socket, bind, listen		#
+//--------------------------------------#
+/* define socket, bind to ip:port, listen to port */
+//int Server::create_socket_bind()
+//{
+//	int status;
+
+//	poll_fds.clear();
+//	for (size_t i = 0; i < servers.size(); i++)
+//	{
+//		/* code */
+//		server_fd = socket(res[i]->ai_family, res[i]->ai_socktype, res[i]->ai_protocol);
+//		if (server_fd < 0)
+//		{
+//			std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
+//			continue;
+//			//return (-1);
+//		}
+//		/*Bind Error: Address already in use occurs because when a socket is closed,
+//			it stays in a kernel state called TIME_WAIT for several minutes. 
+//			setsockopt() tell the kernel reuse the port
+//		*/
+//		int opt = 1;
+//        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+//            std::cerr << "[Server] setsockopt Error: " << strerror(errno) << std::endl;
+//            close(server_fd);
+//            continue;
+//        }
+//		set_nonblocking(server_fd);
+//		// Bind socket to address and port
+//		std::cout << "Binding server[" << i << "] on port " 
+//          		<< servers[i].port 
+//          		<< " using fd=" << server_fd << std::endl;
+
+//		//std::cout << "fd: " << server_fd << " addr: " << res[i]->ai_addr << std::endl;
+//		status = bind(server_fd,  res[i]->ai_addr, res[i]->ai_addrlen);
+//		if (status != 0)
+//		{
+//			std::cout << "[Server] Bind Error: " << strerror(errno) << std::endl;
+//			return (-1);
+//		}
+//		//if (status == )
+//		status = listen(server_fd, 10);
+//		if (status != 0)
+//		{
+//			std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
+//			return (3);
+//		}
+		
+//		// list of socket
+//		pollfd serverPoll;
+//		serverPoll.fd = server_fd; // add server socket to pollfd
+//		serverPoll.events = POLLIN; // it won't block recv(); // PAY ATTENTION TO HERE FOR SAME READ AND WRITE
+//		serverPoll.revents = 0;
+	
+//		poll_fds.push_back(serverPoll);
+//		serverfd_config[server_fd] = servers[i]; // for every socket I created a server
+//	}
+//	if (poll_fds.empty())
+//        return -1;
+//	return 0;
+//}
+
+
+int Server::create_socket_bind()
+{
+	int status;
+
+	poll_fds.clear();
+	for (size_t i = 0; i < servers.size(); i++)
+	{
+		/* code */
+		server_fd = socket(res[i]->ai_family, res[i]->ai_socktype, res[i]->ai_protocol);
+		if (server_fd < 0)
+		{
+			std::cout << "[Server] Socket Error: " << strerror(errno) << std::endl;
+			continue;
+			//return (-1);
+		}
+		/*Bind Error: Address already in use occurs because when a socket is closed,
+			it stays in a kernel state called TIME_WAIT for several minutes. 
+			setsockopt() tell the kernel reuse the port
+		*/
+		int opt = 1;
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+            std::cerr << "[Server] setsockopt Error: " << strerror(errno) << std::endl;
+            close(server_fd);
+            continue;
+        }
+		set_nonblocking(server_fd);
+		// Bind socket to address and port
+		std::cout << "Binding server[" << i << "] on port " 
+          		<< servers[i].port 
+          		<< " using fd=" << server_fd << std::endl;
+
+		//std::cout << "fd: " << server_fd << " addr: " << res[i]->ai_addr << std::endl;
+		status = bind(server_fd,  res[i]->ai_addr, res[i]->ai_addrlen);
+		if (status != 0)
+		{
+			std::cout << "[Server] Bind Error: " << servers[i].port << strerror(errno) << std::endl;
+			close(server_fd);
+			continue;
+		}
+		//if (status == )
+		status = listen(server_fd, 10);
+		if (status != 0)
+		{
+			std::cerr << "[Server] Listen error: " << strerror(errno) << std::endl;
+			close(server_fd);
+			continue;
+		}
+		
+		// list of socket
+		pollfd serverPoll;
+		serverPoll.fd = server_fd; // add server socket to pollfd
+		serverPoll.events = POLLIN; // it won't block recv(); // PAY ATTENTION TO HERE FOR SAME READ AND WRITE
+		serverPoll.revents = 0;
+	
+		poll_fds.push_back(serverPoll);
+		serverfd_config[server_fd] = servers[i]; // for every socket I created a server
+	}
+	if (poll_fds.empty())
+        return -1;
+	return 0;
+}
+
+void Server::run()
+{
+	//create_socket_bind();
+	int ret = create_socket_bind();
+	if (ret < 0)
+	{
+		std::cerr << "No sockets bound. Exiting.\n";
+		return;
+	}
+
+	int status;
+
+	while (!Server::stop_flag)
+	{ // Main loop
+		// Poll sockets to see if they are ready (2 second timeout)
+		for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
+        	it->revents = 0;
+
+		status = poll(poll_fds.data(), poll_fds.size(), 2000);
+
+		if (status == -1)
+		{
+			if (errno == EINTR)
+			{
+				if (Server::stop_flag)
+				{
+					std::cerr << "[Server] Poll error: " << strerror(errno) << "\n";
+					break;
+				}
+				continue; // retry poll
+			}
+			std::cerr << "[Server] Poll error: " << strerror(errno) << "\n";
+			throw ExceptionServer();
+		}
+
+		else if (status == 0)
+		{
+			// None of the sockets are ready
+			std::cout << "[Server on port: " ;
+			for (size_t i = 0; i < servers.size(); i++)
+				std::cout << servers[i].port << " ";
+			std::cout << std::endl;
+			continue ; // skip the rest of loop after this line, start again to socket
+		}
+
+		if (poll_fds.empty())
+			continue;
+		// rotation index to prevent starvation event
+		size_t n = poll_fds.size();
+		size_t start = poll_start_index % n;
+		// watch poll_fds. poll_driven
+		//for (size_t i = 0; i < poll_fds.size(); i++)
+		for (size_t k = 0; k < n; ++k)
+		{
+			size_t i = (start + k) % n;
+			if ((poll_fds[i].revents & POLLIN)) // POLLIN, readiness
+			{
+				// The socket is ready for reading!
+				//if (poll_fds[i].fd == server_fd)
+				if (serverfd_config.count(poll_fds[i].fd))
+				{
+					//a new client is trying to connect
+					// Socket is our listening server socket
+					accept_new_connection(poll_fds[i].fd);
+				}
+				else
+				{
+					// Socket is a client socket, read it
+					read_data_from_socket(i);
+				}
+			}
+			if (poll_fds[i].revents & POLLOUT)
+			{
+				write_data_to_socket(i);
+			}
+		}
+		// next time i start from the index
+		poll_start_index = (poll_start_index + 1) % (poll_fds.empty() ? 1 : poll_fds.size());
+	}
+	shutdown_all_clients();
+}
+
+void Server::shutdown_all_clients()
+{
+    for (size_t i = 0; i < poll_fds.size(); ++i)
+    {
+        int fd = poll_fds[i].fd;
+        if (fd >= 0)
+            close(fd);
+    }
+
+    poll_fds.clear();
+    http_req.clear();
+}
+
+
+const char* Server::ExceptionServer::what() const throw(){
+	return ("Faile to creation server!");
+}
+
+ // our server's port
+void	Server::accept_new_connection(int listen_fd)
+{
+	// in a loop accept server fd? 
+	while (true)
+	{
+		int new_fd = accept(listen_fd, NULL, NULL);
+		if (new_fd == -1) // under rule check the return value and then use errno
+		{
+			
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				return; // normal
+			std::cerr << "[Server] Accept error: \n" << strerror(errno);
+			return;
+		}
+	
+		set_nonblocking(new_fd);
+	
+		add_to_poll_fds(new_fd); // no need to pass this fd
+		std::cout << "[Server] Accepted new connection on client socket" <<  new_fd << std::endl;
+		http_req.insert(std::make_pair(new_fd, HttpRequest()));
+		http_req[new_fd].setServerConfig(&serverfd_config[listen_fd]);
+		
+		//this->http_req[new_fd].clearBuffer();
+	}
+	
+}
+
+
+//-----------------------------------------------------
+void Server::read_data_from_socket(int i)
+{
+    char  chunk[BUFSIZ];
+    int   bytes_read = -1;
+    int   sender_fd = poll_fds[i].fd;
+
+    HttpRequest &req = http_req[sender_fd];
+
+    std::cout << "STATE before recv on fd " << sender_fd
+              << ": " << req.getState() << std::endl;
+
+    // If we are currently sending a response, ignore reads
+    if (req.getState() == HttpRequest::SENDING)
+        return;
+
+    // If already in ERROR, don't read more
+    if (req.getState() == HttpRequest::ERROR)
+        return;
+
+    memset(chunk, 0, sizeof(chunk));
+    bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
+
+    if (bytes_read > 0)
+    {
+        std::cout << "\n[" << sender_fd << "] Got message: start ----->\n"
+                  << std::string(chunk, sizeof(chunk)) << "\n<----------end request\n\n";
+
+        // Append to request buffer
+        req.appendBuffer(chunk, bytes_read);
+
+        // Hard header size limit
+        if (req.getHeaderSize() > MAX_HEADER_SIZE)
+        {
+            std::cout << "header size too large: "
+                      << req.getHeaderSize() << std::endl;
+            req.setStatusCode(431);
+            req.setState(HttpRequest::ERROR);
+        }
+
+        // Run FSM only if not already in ERROR
+        if (req.getState() != HttpRequest::ERROR)
+            fsm(sender_fd);
+
+        std::cout << "AFTER FSM state: " << req.getState()
+                  << ", buffer size " << req.getBuffer().size()
+                  << ", query: " << req.getQuery() << " MAX \n";
+
+        req.setClientSocket(sender_fd);
+
+        // Only build/send a response when FSM is DONE or ERROR
+        if (req.getState() == HttpRequest::DONE ||
+            req.getState() == HttpRequest::ERROR)
+        {
+            std::cout << "\n\nHTTP REQ AFTER FSM: "
+                      << req.getStatusCode() << std::endl;
+
+            ResponseHandler rh;
+            std::string response;
+
+            // Only call controller if not in ERROR
+            if (req.getState() != HttpRequest::ERROR)
+            {
+                std::cout << "\033[1;33m state " << req.getState()
+                          << " can be body state\033[0m\n";
+                rh.controller(req, *req.getServerConfig());
+            }
+
+            if (req.getState() == HttpRequest::ERROR)
+                rh.getResponse().setHeader("Connection", "close");
+
+            rh.finalize(req, *req.getServerConfig());
+            response = rh.getResponse().toString();
+
+            std::cout << "response: " << response << std::endl;
+
+            req.sendBuffer = response;
+            req.sendOffset = 0;
+            req.setState(HttpRequest::SENDING);
+
+            // We now want to write on this fd
+            set_poll_events(sender_fd, POLLOUT | POLLIN);
+
+			/* -------TEST different keep-alive ---------------- */
+			// [TEST] close conection after frist response to prevent browser to keep-alive
+			rh.getResponse().setHeader("Connection", "close");
+			req.shouldClose = true;
+			/* ---------------------------TEST---------------- */
+
+        }
+    }
+    else
+    {
+        if (bytes_read == 0)
+        {
+            // Client closed connection
+            close(sender_fd);
+            http_req.erase(sender_fd);
+            del_from_poll_fds(i);
+            return;
+        }
+
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            // No data available now
+            std::cout << "state is " << req.getState()
+                      << " but errno " << strerror(errno) << "\n";
+            return;
+        }
+
+        // Real error
+        std::cerr << "RECV " << strerror(errno) << std::endl;
+        close(sender_fd);
+        http_req.erase(sender_fd);
+        del_from_poll_fds(i);
+        return;
+    }
+}
+
+void Server::write_data_to_socket(int i)
+{
+    int fd = poll_fds[i].fd;
+    HttpRequest &req = http_req[fd];
+
+    if (req.getState() != HttpRequest::SENDING)
+        return;
+
+    ssize_t n = send(fd, req.sendBuffer.data() + req.sendOffset,
+                     req.sendBuffer.size() - req.sendOffset,
+                     0);
+
+    if (n > 0)
+    {
+        req.sendOffset += n;
+    }
+    else if (n == -1)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return;
+
+        // Real send error
+        cleanup_client(i, fd);
+        return;
+    }
+
+    // Finished sending the whole response?
+    if (req.sendOffset >= req.sendBuffer.size())
+    {
+        req.sendBuffer.clear();
+        req.sendOffset = 0;
+
+        std::cout << fd << " prepare to READ after send occured\n";
+
+        // Decide whether to close or keep-alive
+        std::map<std::string, std::string>::const_iterator it =
+            req.getHeader().find("connection");
+
+        bool close_conn = req.shouldClose ||
+                          (it != req.getHeader().end() &&
+                           it->second == "close");
+
+        if (close_conn)
+        {
+            cleanup_client(i, fd);
+            return;
+        }
+		std::cout << "[TEST] hanging here\n";
+        // Keep-alive: prepare for next request
+        req.resetForNextRequest();      // clears state, body, etc.
+		std::cout << "[TEST] after resetForRequest() hanging here\n";
+        set_poll_events(fd, POLLIN);    // only read next
+		std::cout << "[TEST] after set_poll_event() hanging here \n" 
+			<< "content-length: " << req.getContetnLen() << "body size: " << req.getBody().size() << std::endl;
+		//return ;
+    }
+	
+}
+
+void Server::add_to_poll_fds(int cleint_fd)
+{
+    pollfd p;
+    p.fd = cleint_fd;
+    p.events = POLLIN | POLLOUT;
+    p.revents = 0;
+
+    poll_fds.push_back(p);
+}
+
+void Server::del_from_poll_fds(int i)
+{
+    poll_fds[i] = poll_fds.back();
+    poll_fds.pop_back();
+}
+
+void Server::set_poll_events(int fd, short events)
+{
+    for (size_t i = 0; i < poll_fds.size(); i++)
+    {
+        if (poll_fds[i].fd == fd)
+        {
+            poll_fds[i].events = events;
+            return;
+        }
+    }
+}
+void Server::cleanup_client(int index, int fd)
+{
+    close(fd);
+    http_req.erase(fd);
+    del_from_poll_fds(index);
+}
+
+void Server::signal_handler(int sig)
+{
+	(void)sig;
+	Server::stop_flag = 1;
+}
+
+//void	Server::read_data_from_socket(int i)
+//{
+	
+//	char	chunk[BUFSIZ];
+//	int		bytes_read = -1;
+//	int		sender_fd;
+
+//	sender_fd = poll_fds[i].fd;
+//	memset(&chunk, '\0', sizeof(chunk));
+//	std::cout << "STATE before recv on fd " << sender_fd
+//          << ": " << http_req[sender_fd].getState() << std::endl;
+
+//	//recv() just reads whatever bytes are currently available in the kernel buffer for that socket.
+//	if (http_req[sender_fd].getState() == HttpRequest::SENDING ||
+//    	http_req[sender_fd].getState() == HttpRequest::ERROR)
+//	{
+//		return; // ignore all incoming data
+//	}
+
+//	bytes_read = recv(sender_fd, chunk, BUFSIZ, 0);
+		
+//	if (bytes_read > 0)
+//	{
+//		// Relays the received message to all connected sockets
+//		// but not to the server socket or the sender socket
+//		std::cout << "\n[" << sender_fd << "] Got message: start ----->\n" << chunk << "\n<----------end request\n\n";
+//		http_req[sender_fd].appendBuffer(chunk, bytes_read);
+//		if (http_req[sender_fd].getHeaderSize() > MAX_HEADER_SIZE)
+//		{
+//			std::cout << "header size to large" <<  http_req[sender_fd].getHeaderSize() << std::endl;
+//			http_req[sender_fd].setStatusCode(431);
+//			http_req[sender_fd].setState(HttpRequest::ERROR);
+//		}
+//		if (http_req[sender_fd].getState() != HttpRequest::ERROR)
+//			fsm(sender_fd); // in fsm get req with http_req[sender_fd]
+//		std::cout << "AFTER FSM state: " << http_req[sender_fd].getState()
+//			 << ", buffer size " <<http_req[sender_fd].getBuffer().size() 
+//			<< ", query: " << http_req[sender_fd].getQuery() << " MAX \n";
+		
+//		http_req[sender_fd].setClientSocket(sender_fd); // client<->server
+
+//		if ((http_req[sender_fd].getState() == HttpRequest::DONE 
+//			|| http_req[sender_fd].getState() == HttpRequest::ERROR))
+//		{
+//			// when recv() finished enabple POLLOUT to send()
+//			std::cout << "\n\nHTTP REQ AFTER FSM: " << http_req[sender_fd].getStatusCode() << std::endl;
+//			/* create an object from response handler */
+//			ResponseHandler res;
+//			std::string response;
+//			//res.controller(http_req[sender_fd], servers); // (req , res)=>{...}
+//			//if (http_req[sender_fd].getStatusCode() < 400)
+//			//int state = http_req[sender_fd].getState();
+//			//if (state == HttpRequest::DONE || state == HttpRequest::ERROR || state == HttpRequest::SENDING)
+//			if (http_req[sender_fd].getState() != HttpRequest::ERROR)
+//			{
+//				std::cout << "\033[1;33m state " << http_req[sender_fd].getState() << " can be body state\033[0m\n";
+//				res.controller(http_req[sender_fd], *http_req[sender_fd].getServerConfig()); // (req , res)=>{...}
+//			}
+			
+//			if (http_req[sender_fd].getState() == HttpRequest::ERROR)
+//				res.getResponse().setHeader("Connection", "close");
+//			res.finalize(http_req[sender_fd], *http_req[sender_fd].getServerConfig());
+
+//			response = res.getResponse().toString(); // make foramt http res to string
+//			std::cout << "response: " << response << std::endl;
+
+//			// fill the http_req for the clint == sender_fd, in write_data_to_fd() will send
+//			http_req[sender_fd].sendBuffer = response ; 
+//			http_req[sender_fd].sendOffset = 0;
+//			http_req[sender_fd].setState(HttpRequest::SENDING);
+//			set_poll_events(sender_fd, POLLOUT | POLLOUT); 
+//			// here it goes to send mode
+//		}
+//	}
+//	else
+//	{
+//		if (bytes_read == 0)
+//		{
+//			// Client closed connection
+//			close(sender_fd);
+//			http_req.erase(sender_fd);
+//			del_from_poll_fds(i);
+//			return;
+//		}
+
+//		// recv() returned -1
+//		std::cerr << "RECV " << strerror(errno) << std::endl;
+
+//		if (errno == EAGAIN || errno == EWOULDBLOCK)
+//		{
+//			// No data available now — this is normal for nonblocking sockets
+//			std::cout << "state is " << http_req[sender_fd].getState() << "but errno " << strerror(errno) << "\n";
+//			return;
+//		}
+
+//		// Real error
+//		close(sender_fd);
+//		http_req.erase(sender_fd);
+//		del_from_poll_fds(i);
+//		return;
+//	}
+//}
+
+//void Server::write_data_to_socket(int i)
+//{
+
+//	int fd = poll_fds[i].fd;
+//    HttpRequest &req = http_req[fd];
+
+//    // Try to send the remaining part of the buffer
+//    ssize_t n = send(fd, req.sendBuffer.data() + req.sendOffset, 
+//                     req.sendBuffer.size() - req.sendOffset, 0);
+	
+//    if (n > 0) 
+//	{
+//        req.sendOffset += n; // update offset
+//    }
+//	else if (n == -1)
+//	{
+//		// not readiness
+//        if (errno == EAGAIN || errno == EWOULDBLOCK)
+//			return;
+//        // Handle actual error (close connection)
+//    	cleanup_client(i, fd); 
+//		return;
+//    }
+//	// reset the value of header size,
+//	//req.setHeaderSize(0);
+//	if (req.shouldClose)
+//	{
+//		set_poll_events(fd, POLLIN);// 
+//		req.resetForNextRequest();
+//        req.setState(HttpRequest::REQ_LINE);
+//		cleanup_client(i, fd);
+//		std::cout << fd << " prepare to READ after error accured\n"; 
+//		return;
+//	}
+
+//    // Is the whole buffer sent?
+//    if (req.sendOffset >= req.sendBuffer.size()) 
+//	{
+//        // FINISHED SENDING and clear the buffer
+//        req.sendBuffer.clear();
+//        req.sendOffset = 0;
+
+//        // Disable POLLOUT so we don't keep getting triggered
+//		std::cout << fd << " prepare to READ after send occured\n";
+//        set_poll_events(fd, POLLIN); 
+
+//        if (req.getHeader()["connection"] == "close")
+//		{
+//            // Cleanup and close
+//			cleanup_client(i, fd);
+//			req.setState(HttpRequest::REQ_LINE);
+//			return;
+//        }
+//		else
+//		{
+//            req.resetForNextRequest();
+//            req.setState(HttpRequest::REQ_LINE);
+//        }
+//    }
+//}
+
+

@@ -1,0 +1,38 @@
+
+	The important key the I should keep in mind:
+
+	res.set() =>modify the http response to send info header to the cleint
+	- here we can set cookie
+	- we can set content type as html->response.setHeader("Content-Type", mime_from_extension(ext));
+	- close connectin is very important, as express that we could close cycle with res.send(), and jump with next between middleware
+	- in my was POLLOUT => swtich the state socket readiness again
+	- response.setStatus(301);
+
+	- response.setHeader("Location", "/login"); // redirection
+	- response.setBody("");
+
+	Express: 
+		res.cookie("token", "abc", { httpOnly: true });
+	Webser:
+		response.addHeader("Set-Cookie", "token=abc; HttpOnly");
+
+	nice to have:
+		redirect(url, code)
+		sendFile(path)
+		json(string)
+
+	Question?	Header
+		What type of data is this?	Content-Type
+		How big is it?	Content-Length
+		Should the browser cache it?	Cache-Control
+		Should the connection stay open?	Connection
+		Is this a redirect?	Location
+		Should the browser store a cookie?	Set-Cookie
+		Is auth required?	WWW-Authenticate
+		Security rules?	CSP, HSTS, X-Frame-Options
+
+# to set cookie server must do something like this:
+	response.addHeader(
+		"Set-Cookie",
+		"session=abc123; HttpOnly; Path=/"
+	);

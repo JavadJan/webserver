@@ -1,0 +1,158 @@
+curl -v -X POST -d "name=Bob&age=22" http://127.0.0.1:4545/form
+curl -v -X POST -d "name=Bob&age=22" http://127.0.0.1:4244/cgi/hello.sh
+curl -v -F "file=@out.txt" http://127.0.0.1:4244/upload
+curl -v -F "file=@img.png" http://127.0.0.1:4245/upload
+
+curl -X DELETE http://localhost:4245/upload/test.txt -v
+
+-------------------------------------------------------------
+nc 127.0.0.1 4244
+POST /cgi/hello.sh HTTP/1.1
+Host: localhost
+User-Agent: curl/8.0
+Accept: */*
+Transfer-Encoding: chunked
+Content-Type: application/x-www-form-urlencoded
+
+7
+name=Mj
+6
+avad&
+8
+lang=cpp
+0
+
+-----------------------------------------------------------------------
+printf "POST /cgi/hello.sh HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\n7\r\nname=Mj\r\n6\r\navad&\r\n8\r\nlang=cpp\r\n0\r\n\r\n" | nc 127.0.0.1 4244
+---------------------------
+dd if=/dev/zero of=big.txt bs=1M count=2
+tr '\0' 'A' < big.txt > bigA.txt
+
+curl -X POST \
+  -H "Content-Type: text/plain" \
+  --data-binary @bigA.txt \
+  http://localhost:4244/test
+--------------------------------------------------------------------------
+# check body size: 
+for m in 2 4 8 16 32; do
+  echo "Testing ${m}MB"
+  dd if=/dev/zero bs=1M count=$m 2>/dev/null | \
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    -H "Content-Type: text/plain" \
+    --data-binary @- \
+    http://localhost:4244/
+done
+-------------------------------------------
+# too large:
+
+for m in 2 3 4; do
+  echo "===== Testing ${m}MB ====="
+
+  dd if=/dev/zero bs=1M count=$m 2>/dev/null | \
+  curl -H "Content-Type: text/plain" \
+       --data-binary @- \
+       -w "\n--- HTTP %{http_code} ---\n" \
+       http://localhost:4244/
+
+  echo
+done
+---------------------------------------
+
+2. test with net cat
+nc 127.0.0.1 4545
+GET / HTTP/1.1
+Host: localhost
+---------------------------------------------------
+3. curl -v http://127.0.0.1:4243/%2e%2e/%2e%2e/a
+---------------------------------------------------
+
+---------------------------------------------------
+4. curl -v -X POST http://127.0.0.1:4244/ -d ""
+---------------------------------------------------
+
+
+// ERROR limit header size: 
+4. curl -v -H "$(head -c 17000 < /dev/zero | tr '\0' 'A')" http://localhost:4243/
+
+
+
+///////////////////////////////////////////////
+	ps aux | grep server
+	kill -9 <PID>
+//////////////////////////////////////////////
+
+/* 
+	std::vector<pollfd> poll_fds;
+	int num = poll(poll_fds.data(), poll_fds.size(), 2000);
+	num = 0		-> no detect fd to read; so the timeout has expired
+	num = -1	-> error happend
+	num > 0		-> fins fd to read
+
+	struct pollfd {
+		int   fd;        -> File descriptor to monitor
+		short events;    -> Requested events (what you want to watch for)
+		short revents;   -> Returned events (what actually happened)
+	};
+	fd : the file descriptor you want to watch for, e.g., file, pipe, socket
+	events: a bitmask event you want to watch for. 
+			e.g., 	POLLIN : ready for reading (it won't block recv() ) 0001
+					POLLOUT: ready for writing (it won't block send() ) 0100
+	revents:	fild by kernal after poll();
+				tells you which event happend on that file descriptor
+
+	bitmask? 
+		A bitmask is just an integer where each bit represents a flag (a yes/no condition).
+		Instead of storing multiple booleans separately, you pack them into one number.
+		You can then use bitwise operators (|(OR), &(AND)) to combine or test flags.
+
+	--------------------------
+	we’re checking all sockets that are ready (poll_fds[i].revents & POLLIN).
+	But not all sockets are the same:
+		- Listening socket → readiness means a new client wants to connect. You must call accept().
+		- Client socket → readiness means this client sent data. You must call recv()
+
+*/
+
+/* 
+	STEP 1 — HTTP request parsing (FSM) first
+		- method
+		- path
+		- protocol
+		- header parsing
+		- detect end of headers
+		- detect body based on Content-Length
+		TEST:
+			• curl
+			• browser
+			• raw netcat
+			• split TCP chunks
+			• malformed requests	
+
+	STEP 2 — Config parser
+
+		- build a simple object tree	- 
+		- fill server roots, ports, routes, etc.
+
+	STEP 3 — Request handler
+		- match URI to config
+		- check method allowed
+		- build static file path
+		- decide between static file, directory, or CGI
+
+	STEP 4 — Response generator
+		- build status line
+		- build headers
+		- build body
+		- store in per-client write buffer
+
+	STEP 5 — Non-blocking POLLOUT sending
+		- handle partial sends
+		- flush buffer
+		- close connection if needed
+
+	STEP 6 — CGI execution
+		- fork
+		- execve
+		- read pipes non-blocking
+*/
+
