@@ -1,19 +1,15 @@
 #include "../include/ResponseHandler.hpp"
 #include "../include/Config.hpp" // to use location and config
-<<<<<<< HEAD
 #include <fstream>
 #include <sstream>
 #include <sys/stat.h>
 #include <cstdlib>
 #include <dirent.h>
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 
 //------------------------------#
 //			constructors		#
 //------------------------------#
 ResponseHandler::ResponseHandler()
-<<<<<<< HEAD
 :res(),
 loc(),
 full_path(),
@@ -27,10 +23,6 @@ has_loc(false)
 }
 
 // ResponseHandler to this request, this req has the socket fd
-=======
-{
-} // ResponseHandler to this request, this req has the socket fd
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 ResponseHandler::~ResponseHandler()
 {
 }
@@ -47,7 +39,6 @@ ResponseHandler &ResponseHandler::operator=(const ResponseHandler &other)
 	return (*this);
 }
 
-<<<<<<< HEAD
 
 void ResponseHandler::setLocation(const Location& l)
 {
@@ -61,17 +52,6 @@ const Location& ResponseHandler::getLocation() const
 }
 
 
-=======
-void ResponseHandler::setLocation(Location *location)
-{
-	this->loc = location;
-}
-Location* ResponseHandler::getLocation() const
-{
-	return this->loc;
-}
-
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 //------------------------------#
 //			methods, main		#
 //------------------------------#
@@ -171,11 +151,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		return ;
 	}
 	
-<<<<<<< HEAD
 	this->setLocation(location);
-=======
-	this->setLocation(&location);
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 	
 		//full_path = resolvePath(req.getPath(), location); // 
 	full_path = resolvePath(req.getPath(), location);
@@ -193,11 +169,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		if (isCGI())
 			handleCGI(req, server);
 		else
-<<<<<<< HEAD
 			handleGet(req);
-=======
-			handleGet();
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 		return ;
 	}
 	else if (req.getMethod() == "POST")
@@ -218,7 +190,6 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	}	
 }
 
-<<<<<<< HEAD
 static bool autoIndex(struct Location &loc)
 {
 	//// reamin
@@ -293,11 +264,6 @@ std::string getMimeType(const std::string& path)
 
 // 
 void ResponseHandler::handleGet(const HttpRequest& req)
-=======
-
-// 
-void ResponseHandler::handleGet()
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 {
 	struct stat st;
 	std::cout << "full path: " << full_path << std::endl;
@@ -319,7 +285,6 @@ void ResponseHandler::handleGet()
 	if (S_ISDIR(st.st_mode))
     {
         // Try index.html
-<<<<<<< HEAD
 		std::string index = full_path + "/index.html";
 		if (stat(index.c_str(), &st) == 0 && S_ISREG(st.st_mode))
 			full_path = index;
@@ -341,20 +306,6 @@ void ResponseHandler::handleGet()
     }
 	//regular file
 	std::ifstream file(full_path.c_str(), std::ios::binary); // binary for image
-=======
-        std::string index = full_path + "/index.html";
-        if (stat(index.c_str(), &st) == 0)
-            full_path = index;
-        else
-        {
-            res.setStatusCode(403);
-            res.setBody("Forbidden");
-            return;
-        }
-    }
-	//regular file
-	std::ifstream file(full_path.c_str()); // here read why?
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
     if (!file)
     {
         res.setStatusCode(403);
@@ -366,16 +317,12 @@ void ResponseHandler::handleGet()
 
     res.setStatusCode(200); // set the correct status
     res.setBody(buffer.str());
-<<<<<<< HEAD
 	res.setContType(getMimeType(full_path));
 	std::cout << "CONTENT TYPE: " << req.getContentType() << std::endl;
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 }
 
 void ResponseHandler::handleDelete()
 {
-<<<<<<< HEAD
     struct stat st;
 
     // Check if path exists
@@ -508,89 +455,17 @@ void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
         }
 
         // Directory exists but no index → POST not allowed
-=======
-	/// remain
-}
-
-static bool uploadEnabled(struct Location *loc)
-{
-	//// reamin
-	std::map<std::string, std::vector<std::string> >::const_iterator obj = loc->directive.find("allow_upload");
-	if (obj->second[0] == "on")
-	{
-		return true; 
-	}	
-	//confServer.locations.
-	return false;
-}
-
-//static long long maxBodySize(struct Config serverConf)
-//{
-//	long long body_size = atoll(serverConf.directives["max_body_size"][0].c_str());
-//	return body_size;
-//}
-
-//static std::string contetnType(HttpRequest req)
-//{
-//	std::string multiPart = req.getHeader()["Content-Type"];
-//	return multiPart;
-//}
-
-
-
-
-void ResponseHandler::handleUpload(const HttpRequest &req, const Config &server)
-{
-	(void)req;
-	(void)server;
-
-}
-
-void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
-{
-	(void)server;
-	(void)req;
-    // CGI? this server block cover the cgi?
-    if (isCGI())
-    {
-		std::cout << "server side is CGI\n";
-        handleCGI(req, server);
-        return;
-    }
-	std::cout << "it is not CGI\n";
-
-    // Upload?
-    if (uploadEnabled(this->loc))
-    {
-        handleUpload(req, server); /// 
-        return;
-    }
-	
-    // Static file → POST not allowed
-    struct stat st;
-    if (stat(full_path.c_str(), &st) == 0 && S_ISREG(st.st_mode))
-    {
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
         res.setStatusCode(405);
         return;
     }
 
-<<<<<<< HEAD
     // 6. Fallback
     res.setStatusCode(404);
-=======
-    // 4. Not found
-    res.setStatusCode(404);
-	std::cout << "AHHH here the status code has changed to 404 in handle post\n";
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 }
 
 
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 void ResponseHandler::finalize(const HttpRequest& req, const Config& server)
 {
     if (res.getStatusCode() < 400)

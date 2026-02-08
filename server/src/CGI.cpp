@@ -52,15 +52,9 @@ std::string ResponseHandler::scriptCGI()
     std::string ext = full_path.substr(dot);
 
     std::map<std::string, std::vector<std::string> >::const_iterator it =
-<<<<<<< HEAD
         this->loc.directive.find("cgi");
 
 	if (it == this->loc.directive.end())
-=======
-        this->loc->directive.find("cgi");
-
-	if (it == this->loc->directive.end())
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
         return "";
 		
 		const std::vector<std::string>& v = it->second;
@@ -69,11 +63,7 @@ std::string ResponseHandler::scriptCGI()
 	{
 		if (v[i] == ext)
 		{
-<<<<<<< HEAD
 			std::cout << "CGI file to run: "  << v[i+ 1] << "ext: " << v[i] << std::endl;
-=======
-			std::cout << "CGI file to run: "  << v[i] << v[i + 1] << std::endl;
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 			this->setCGIScript(v[i + 1]); // /usr/bin/
             return v[i + 1];
 		}
@@ -126,47 +116,23 @@ std::vector<char*> ResponseHandler::buildCGIEnv(const HttpRequest& req, const Co
     return env;
 }
 
-<<<<<<< HEAD
-=======
-//std::string ResponseHandler::parseOutBufferCGI(std::string outBuf)
-//{
-//	size_t pos = outBuf.find("\r\n\r\n");
-//	if (pos == std::string::npos)
-//		pos = outBuf.find("\n\n");
-
-//	std::string cgiHeaders = outBuf.substr(0, pos);
-//	std::string cgiBody = outBuffer.substr(pos + 2);
-
-//}
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 
 void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 {
 	std::vector<char *> env = buildCGIEnv(req, server);
 	int out_fd[2]; // for run script to parent
 	int in_fd[2];	// for reading body post
-<<<<<<< HEAD
 	//int statusChild = -1;
 	char* script = dupString(scriptCGI()); // or getCGIScript()
 	char* script_path = dupString(full_path); // or getCGIScript()
 	char* argv[] = {
 		script,                 // interpreter
 		script_path,   // script file
-=======
-	int statusChild = -1;
-	char* script = dupString(scriptCGI()); // or getCGIScript()
-	char* argv[] = {
-		script,                 // interpreter
-		dupString(full_path),   // script file
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 		NULL
 	};
 
 	std::cout << "full_path to run script: " << full_path << std::endl;
-<<<<<<< HEAD
 	std::cout << "body: " << req.getBody() << std::endl;
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 	std::string outBuffer;
 	int state = pipe(out_fd);
 	int stateIn = pipe(in_fd);
@@ -202,27 +168,17 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		if (execve(script, argv, &env[0]) == -1)
 		{
 			std::cout << "Failed to execve: " << strerror(errno) << std::endl;
-<<<<<<< HEAD
 			_exit(1);
 			//return ;
-=======
-			//_exit(1); not allowed may be add exception later
-			return ;
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 		}
 	}
 	else
 	{
-<<<<<<< HEAD
-=======
-		std::cout << "env: " << env[0] << std::endl;
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 		close(in_fd[0]); // here write no nead to input
 		if (req.getMethod() == "POST")
 		{
 			write(in_fd[1], req.getBody().c_str(), req.getBody().size());
 		}
-<<<<<<< HEAD
 		// Parent process
 		close(out_fd[1]);
 		close(in_fd[1]); // if I don't add this line the script will wait for EOF
@@ -303,47 +259,6 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		res.setBody(getBodyCGI());
 	}
 	delete[] script_path;
-=======
-		close(in_fd[1]);
-
-		// Parent process
-		close(out_fd[1]);
-		char buffer[4096];
-		ssize_t bytesRead;
-		while ((bytesRead = read(out_fd[0], buffer, sizeof(buffer))) > 0)
-		{
-			outBuffer.append(buffer, bytesRead);
-		}
-		close(out_fd[0]);
-		waitpid(pid, &statusChild, 0);
-		parseOutBufferCGI(outBuffer);
-
-		if (WIFEXITED(statusChild))
-        {
-                int code = WEXITSTATUS(statusChild);
-                if (code == 0)
-                {
-					res.setStatusCode(200);
-                }
-                else
-                {
-                    res.setStatusCode(500);
-                }
-        }
-        //if (WIFSIGNALED(statusChild))
-        //{
-        //        sig = WTERMSIG(status);
-        //        if (verbose)
-        //                printf("Bad function: %s\n", strsignal(sig));
-        //        return (0);
-        //}
-
-		
-		//res.setStatusCode(200);
-		res.setBody(getBodyCGI());
-	}
-
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 	delete[] script;
 	for (size_t i = 0; i < env.size(); ++i)
 		if (env[i] != NULL)
@@ -351,24 +266,16 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 }
 
 // CGI
-<<<<<<< HEAD
 
 bool ResponseHandler::isCGI()
 {
     if (full_path.empty())
         return false;
 
-=======
-bool ResponseHandler::isCGI()
-{
-	// extract extention *.ext
-	// the request_line should be have .py? e.g., POST /cgi/file.py HTTP/1.1 ?
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
     size_t dot = full_path.rfind('.');
     if (dot == std::string::npos)
         return false;
 
-<<<<<<< HEAD
     std::string ext = full_path.substr(dot);
 
     if (!has_loc)
@@ -380,19 +287,6 @@ bool ResponseHandler::isCGI()
     if (it == loc.directive.end())
         return false;
 
-=======
-	// .py and .php extention
-    std::string ext = full_path.substr(dot);
-
-	// the sever block has configured for cgi at all?
-    std::map<std::string, std::vector<std::string> >::const_iterator it =
-        this->loc->directive.find("cgi");
-
-    if (it == this->loc->directive.end())
-        return false;
-
-	// find the specific extention cgi e.g., .py or .php: path==cgi .py
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
     const std::vector<std::string>& v = it->second;
     for (size_t i = 0; i + 1 < v.size(); i += 2)
     {
@@ -403,10 +297,7 @@ bool ResponseHandler::isCGI()
     return false;
 }
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 #pragma region 
 /* ----------------------------------------- */
 /* 											 */

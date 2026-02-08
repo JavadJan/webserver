@@ -2,11 +2,7 @@
 //------------------------------#
 //			constructors		#
 //------------------------------#
-<<<<<<< HEAD
 Response::Response():statusCode(404), body(""), autoindex(false)
-=======
-Response::Response():statusCode(404), body("")
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 {
 
 } // response to this request, this req has the socket fd
@@ -24,17 +20,13 @@ Response &Response::operator=(const Response &other)
 		this->statusCode = other.statusCode;
 		this->body = other.body;
 		this->header = other.header;
-<<<<<<< HEAD
 		this->autoindex = other.autoindex;
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 	}
 	return *this;
 }
 //------------------------------#
 //			getters				#
 //------------------------------#
-<<<<<<< HEAD
 bool Response::getAutoindex() const
 {
 	return this->autoindex;
@@ -42,8 +34,6 @@ bool Response::getAutoindex() const
 
 
 
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 std::string Response::getBody() const 
 {
 	return this->body;
@@ -57,13 +47,10 @@ std::map<std::string, std::string> Response::getHeader() const
 //------------------------------#
 //			methods				#
 //------------------------------#
-<<<<<<< HEAD
 void Response::setAutoindex(bool autoIndex)
 {
 	this->autoindex = autoIndex;
 } 
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 std::string Response::reasonPhrase(int code)
 {
 	std::cout << "status code in creattion res: " << code << std::endl;
@@ -80,12 +67,9 @@ std::string Response::reasonPhrase(int code)
         case 501: return "Not Implemented";
 		case 413: return "Payload Too Large";
 		case 431: return "Request Header Fields Too Large";
-<<<<<<< HEAD
 		case 423: return "Busy, Locked";
 		case 504: return "Gateway Timeout";
 		case 503: return "Service Unavailable";
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
         default:  return "Error";
     }
 }
@@ -110,7 +94,6 @@ int Response::getStatusCode() const {
 	return this->statusCode;
 }
 
-<<<<<<< HEAD
 std::string Response::getContType() const
 {
 	return this->ContentType;
@@ -121,27 +104,18 @@ void Response::setContType(std::string s)
 	this->ContentType = s;
 }
 
-=======
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 std::string Response::toString()
 {
     std::stringstream ss;
 
     ss << "HTTP/1.1 " << getStatusCode() << " " << reasonPhrase(getStatusCode()) << "\r\n";
     ss << "Content-Length: " << body.size() << "\r\n";
-<<<<<<< HEAD
     ss << "Content-Type: ";
 	ss << getContType();
 	ss << "\r\n";
 	//ss << "Set-Cookie: yummy_cookie=chocolate\r\n";
     ss << "\r\n";
 	ss << body;
-=======
-    ss << "Content-Type: text/html\r\n";
-	//ss << "Set-Cookie: yummy_cookie=chocolate\r\n";
-    ss << "\r\n";
-    ss << body;
->>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 
     return ss.str();
 }
