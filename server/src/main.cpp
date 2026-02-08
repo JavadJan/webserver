@@ -3,15 +3,20 @@
 //#include "../include/ParsedData.hpp"
 #include <fcntl.h>
 
+<<<<<<< HEAD
 
 
 int	main(int ac, char *argv[])
+=======
+int	main(int ac, char *argv[], char **env)
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 {
 	if (ac != 2)
 	{
 		std::cout << "[USAGE] ./server config.con\n";
 		return (1);
 	}
+<<<<<<< HEAD
 	
 	// prevent to ctrl +Z to work, prevent Zombie
 	struct sigaction sa_tstp;
@@ -35,6 +40,16 @@ int	main(int ac, char *argv[])
 	}
 	try
 	{
+=======
+	(void)ac;
+	(void)argv;
+	(void)env;
+	//Config conf("./conf"); // implicit conversion
+	//Config conf; // implicit conversion
+	try
+	{
+		/* code */
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 		std::vector<struct Config> serversConfig = parseConfig(argv[1]);
 		std::cout << serversConfig[0].port << std::endl;
 		

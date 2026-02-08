@@ -8,8 +8,12 @@
 #include <cstdlib>      // for std::exit
 #include <set>
 #include <queue>
+<<<<<<< HEAD
 #include <signal.h>
 #include <csignal>
+=======
+
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 // POSIX headers (no C++ equivalents)
 #include <fcntl.h>
 #include <unistd.h>
@@ -27,11 +31,14 @@
 #define MAX_HEADER_SIZE 16384
 #define PORT 4242
 
+<<<<<<< HEAD
 //volatile sig_atomic_t stop_flag = 0;
 // Server.cpp
 
 // Add this line to define the variable and initialize it
 
+=======
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 // class Config;
 //class HttpRequest;
 
@@ -57,7 +64,11 @@ class Server{
 
 		/* track the state, smart state, persisit buffer per socket/client? */
 		std::map<int, HttpRequest> http_req; // for every socket should be created an objet of request
+<<<<<<< HEAD
 		bool body_chunked;
+=======
+		int start_body;
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 
 		/* for non-blocking */
 		std::vector<pollfd> poll_fds;
@@ -83,6 +94,7 @@ class Server{
 		void consume(size_t start, size_t end, int sock_fd);
 		void parseRequestLine(std::string buf, int sock_fd);
 		void parseHeader(std::string buf, int sock_fd);
+<<<<<<< HEAD
 		std::string unchunkedBody(const std::string &buf);
 		void fsm(int sock_fd); // control strea string from TCP
 		/* in each state I remove after complition STATE */
@@ -90,6 +102,12 @@ class Server{
 		static volatile sig_atomic_t stop_flag;
 		static void signal_handler(int sig);
 		void shutdown_all_clients();
+=======
+		void fsm(int sock_fd); // control strea string from TCP
+		/* in each state I remove after complition STATE */
+	public:
+		
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 		Server(std::vector<struct Config> serversConfig);
 		~Server();
 		void setServerConfig(Config conf);

@@ -254,15 +254,21 @@ void Server::parseHeader(std::string buf, int sock_fd)
             return ;
 		}
 		key = to_lower(key);
+<<<<<<< HEAD
 		//std::cout << "CONTENT_KEY " << key << ": " << "VALUE: " << value << std::endl;
 		if (key == "content-type")
 		{
 			http_req[sock_fd].setContentType(value);
 		}
+=======
+		if (key == "content-type")
+			http_req[sock_fd].setContentType(value);
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 		
 		http_req[sock_fd].setHeader(key, value);
 	}
 }
+<<<<<<< HEAD
 std::string Server::unchunkedBody(const std::string& buf)
 {
     std::string out = "";
@@ -311,6 +317,8 @@ std::string Server::unchunkedBody(const std::string& buf)
 
     return out;
 }
+=======
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 
 
 
@@ -420,8 +428,11 @@ void Server::fsm(int sock_fd)
 
             // Decide next state based on method + Content-Length
             const std::map<std::string, std::string> &headers = req.getHeader();
+<<<<<<< HEAD
             std::map<std::string, std::string>::const_iterator itEN =
                 headers.find("transfer-encoding"); // after lower case
+=======
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
             std::map<std::string, std::string>::const_iterator it =
                 headers.find("content-length"); // after lower case
 
@@ -441,6 +452,7 @@ void Server::fsm(int sock_fd)
                     req.setState(HttpRequest::DONE);
                 }
             }
+<<<<<<< HEAD
             else if (itEN != headers.end())
             {
                 // Transfer-Encoding: chunked - for now, set DONE
@@ -452,6 +464,11 @@ void Server::fsm(int sock_fd)
             {
                 // No Content-Length → no body
 				std::cout << "nobody, but might chunked\n";
+=======
+            else
+            {
+                // No Content-Length → no body
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
                 req.setState(HttpRequest::DONE);
             }
 
@@ -461,6 +478,7 @@ void Server::fsm(int sock_fd)
 
         case HttpRequest::BODY:
         {
+<<<<<<< HEAD
 			std::cout << "[LOG IN STATE BODY] getBuffer: " << req.getBuffer().size() << "\n";
             const std::string &buf = req.getBuffer();
 			std::string body;
@@ -518,6 +536,31 @@ void Server::fsm(int sock_fd)
 				consume(0, body_end + terminator_len, sock_fd);
             }
 
+=======
+            const std::string &buf = req.getBuffer();
+            size_t need = req.getContetnLen();
+			if (need == 0) // added later
+			{
+				req.setState(HttpRequest::DONE);
+				return;
+			}
+
+            if (buf.size() < need)
+                return; // wait for more
+
+            std::string body = buf.substr(0, need);
+
+            if (!validateBody(sock_fd, body))
+            {
+                req.setState(HttpRequest::ERROR);
+                req.shouldClose = true;
+                return;
+            }
+
+            req.setBody(body);
+            consume(0, need, sock_fd);
+
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
             req.setState(HttpRequest::DONE);
             return;
         }
@@ -614,21 +657,37 @@ bool Server::validateHeaders(int fd)
     }
 
     // 2. Reject Transfer-Encoding (we don't support chunked)
+<<<<<<< HEAD
 	// now here I should iimplement this
     //if (headers.count("transfer-encoding"))
     //{
     //    req.setStatusCode(501); // Not implemented
     //    return false;
     //}
+=======
+    if (headers.count("transfer-encoding"))
+    {
+        req.setStatusCode(501); // Not implemented
+        return false;
+    }
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 
     // 3. Content-Length validation
     std::map<std::string, std::string>::const_iterator it =
         headers.find("content-length");
+<<<<<<< HEAD
     
     // POST must have Content-Length
     if (req.getMethod() == "POST")
     {
         if (it == headers.end() && !headers.count("transfer-encoding"))
+=======
+	
+    // POST must have Content-Length
+    if (req.getMethod() == "POST")
+    {
+        if (it == headers.end())
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
         {
             req.setStatusCode(411); // Length Required
             return false;
@@ -708,8 +767,13 @@ bool Server::validateBody(int fd, const std::string &body)
     HttpRequest &req = http_req[fd];
     size_t len = req.getContetnLen();
 
+<<<<<<< HEAD
     // 1. Length mismatch (only validate if not using chunked encoding)
     if (!body_chunked && body.size() != len)
+=======
+    // 1. Length mismatch
+    if (body.size() != len)
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
         return false;
 
     // 2. Too large (config)

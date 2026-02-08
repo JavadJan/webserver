@@ -1,5 +1,6 @@
 curl -v -X POST -d "name=Bob&age=22" http://127.0.0.1:4545/form
 curl -v -X POST -d "name=Bob&age=22" http://127.0.0.1:4244/cgi/hello.sh
+<<<<<<< HEAD
 curl -v -F "file=@out.txt" http://127.0.0.1:4244/upload
 curl -v -F "file=@img.png" http://127.0.0.1:4245/upload
 
@@ -57,11 +58,14 @@ for m in 2 3 4; do
   echo
 done
 ---------------------------------------
+=======
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 
 2. test with net cat
 nc 127.0.0.1 4545
 GET / HTTP/1.1
 Host: localhost
+<<<<<<< HEAD
 ---------------------------------------------------
 3. curl -v http://127.0.0.1:4243/%2e%2e/%2e%2e/a
 ---------------------------------------------------
@@ -69,6 +73,12 @@ Host: localhost
 ---------------------------------------------------
 4. curl -v -X POST http://127.0.0.1:4244/ -d ""
 ---------------------------------------------------
+=======
+
+3. curl -v http://127.0.0.1:4243/%2e%2e/%2e%2e/a
+
+4. curl -v -X POST http://127.0.0.1:4244/ -d ""
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 
 
 // ERROR limit header size: 
@@ -76,11 +86,14 @@ Host: localhost
 
 
 
+<<<<<<< HEAD
 ///////////////////////////////////////////////
 	ps aux | grep server
 	kill -9 <PID>
 //////////////////////////////////////////////
 
+=======
+>>>>>>> 43a25c45afca9c9962f9fd388bbdbc5365af5109
 /* 
 	std::vector<pollfd> poll_fds;
 	int num = poll(poll_fds.data(), poll_fds.size(), 2000);
