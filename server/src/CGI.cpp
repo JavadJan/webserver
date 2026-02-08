@@ -267,35 +267,6 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 
 // CGI
 
-//bool ResponseHandler::isCGI()
-//{
-//	// extract extention *.ext
-//	// the request_line should be have .py? e.g., POST /cgi/file.py HTTP/1.1 ?
-//    size_t dot = full_path.rfind('.');
-//    if (dot == std::string::npos)
-//        return false;
-
-//	// .py and .php extention
-//    std::string ext = full_path.substr(dot);
-
-//	// the sever block has configured for cgi at all?
-//    std::map<std::string, std::vector<std::string> >::const_iterator it =
-//        this->loc->directive.find("cgi");
-
-//    if (it == this->loc->directive.end())
-//        return false;
-
-//	// find the specific extention cgi e.g., .py or .php: path==cgi .py
-//    const std::vector<std::string>& v = it->second;
-//    for (size_t i = 0; i + 1 < v.size(); i += 2)
-//    {
-//        if (v[i] == ext)
-//            return true;
-//    }
-
-//    return false;
-//}
-
 bool ResponseHandler::isCGI()
 {
     if (full_path.empty())

@@ -9,6 +9,7 @@
 #include <set>
 #include <queue>
 #include <signal.h>
+#include <csignal>
 // POSIX headers (no C++ equivalents)
 #include <fcntl.h>
 #include <unistd.h>
@@ -25,6 +26,11 @@
 #define MAX_HEADER_LINE 8192
 #define MAX_HEADER_SIZE 16384
 #define PORT 4242
+
+//volatile sig_atomic_t stop_flag = 0;
+// Server.cpp
+
+// Add this line to define the variable and initialize it
 
 // class Config;
 //class HttpRequest;
@@ -81,7 +87,7 @@ class Server{
 		void fsm(int sock_fd); // control strea string from TCP
 		/* in each state I remove after complition STATE */
 	public:
-		static int stop_flag;
+		static volatile sig_atomic_t stop_flag;
 		static void signal_handler(int sig);
 		void shutdown_all_clients();
 		Server(std::vector<struct Config> serversConfig);

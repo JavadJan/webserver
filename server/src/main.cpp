@@ -13,14 +13,24 @@ int	main(int ac, char *argv[])
 		return (1);
 	}
 	
+	// prevent to ctrl +Z to work, prevent Zombie
+	struct sigaction sa_tstp;
+	sa_tstp.sa_handler = SIG_IGN;
+	sigemptyset(&sa_tstp.sa_mask);
+	sa_tstp.sa_flags = 0;
+	sigaction(SIGTSTP, &sa_tstp, NULL);
+
+
+
 	struct sigaction sa;
 	sa.sa_handler = Server::signal_handler; // call this function
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
+	sa.sa_flags = SA_RESTART;
 
-	if ((sigaction(SIGINT, &sa, NULL) == -1) || sigaction(SIGTERM, &sa, NULL) == -1)
+	if ((sigaction(SIGINT, &sa, NULL) == -1) ||
+		 sigaction(SIGTERM, &sa, NULL) == -1)
 	{
-		std::cerr << "Failed to ignore SIFINT: " << strerror(errno) << std::endl;
+		std::cerr << "Failed to set signal handlers: " << strerror(errno) << std::endl;
 		return 1;
 	}
 	try

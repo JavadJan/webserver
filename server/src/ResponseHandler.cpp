@@ -305,7 +305,7 @@ void ResponseHandler::handleGet(const HttpRequest& req)
 		}
     }
 	//regular file
-	std::ifstream file(full_path.c_str(), std::ios::binary);
+	std::ifstream file(full_path.c_str(), std::ios::binary); // binary for image
     if (!file)
     {
         res.setStatusCode(403);
@@ -390,39 +390,79 @@ static bool uploadEnabled(const Location &loc)
     //confServer.locations.
     return false;
 }
-
 void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
 {
-	(void)server;
-	(void)req;
-    // CGI? this server block cover the cgi?
+    // CGI takes priority
     if (isCGI())
     {
-		std::cout << "server side is CGI\n";
         handleCGI(req, server);
         return;
     }
-	std::cout << "it is not CGI\n";
 
-    // Upload?
+    // Upload enabled?
     if (uploadEnabled(this->loc))
     {
-        handleUpload(req, server); /// 
+        handleUpload(req, server);
         return;
     }
-	
-    // Static file → POST not allowed
+
+    // Check filesystem -> absolute path
     struct stat st;
-    if (stat(full_path.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+    if (stat(full_path.c_str(), &st) != 0)
     {
+        // Path does not exist
+        res.setStatusCode(404);
+        return;
+    }
+
+    // 4. If it's a regular file → POST not allowed
+    if (S_ISREG(st.st_mode))
+    {
+        res.setStatusCode(405); // Method Not Allowed
+        return;
+    }
+
+    // 5. If it's a directory
+    if (S_ISDIR(st.st_mode))
+    {
+        // Try index.html
+        std::string index = full_path + "/index.html";
+        if (stat(index.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+        {
+            full_path = index; // serve index.html
+			std::ifstream file(full_path.c_str(), std::ios::binary); // binary for image
+			if (!file)
+			{
+				res.setStatusCode(403);
+				res.setBody("Forbidden");
+				return;
+			}
+			std::stringstream buffer;
+			buffer << file.rdbuf(); // has rdbuf() allowed?
+
+			res.setStatusCode(200); // set the correct status
+			res.setBody(buffer.str());
+			res.setContType(getMimeType(full_path));
+			//res.setStatusCode(200);
+            return;
+        }
+
+        // Autoindex NEVER applies to POST
+        if (autoIndex(loc))
+        {
+            res.setStatusCode(405); // Method Not Allowed
+            return;
+        }
+
+        // Directory exists but no index → POST not allowed
         res.setStatusCode(405);
         return;
     }
 
-    // 4. Not found
+    // 6. Fallback
     res.setStatusCode(404);
-	std::cout << "AHHH here the status code has changed to 404 in handle post\n";
 }
+
 
 
 

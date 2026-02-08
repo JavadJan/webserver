@@ -3,8 +3,7 @@
 #include "../include/Config.hpp"
 #include "../include/HttpRequest.hpp"
 #include "../include/ResponseHandler.hpp"
-//volatile sig_atomic_t Server::stop_flag = 0;
-int Server::stop_flag = 0;
+volatile sig_atomic_t Server::stop_flag = 0;
 
 //--------------------------------------#
 //		create server object			#
@@ -188,7 +187,14 @@ int Server::create_socket_bind()
 
 void Server::run()
 {
-	create_socket_bind();
+	//create_socket_bind();
+	int ret = create_socket_bind();
+	if (ret < 0)
+	{
+		std::cerr << "No sockets bound. Exiting.\n";
+		return;
+	}
+
 	int status;
 
 	while (!Server::stop_flag)
@@ -204,7 +210,10 @@ void Server::run()
 			if (errno == EINTR)
 			{
 				if (Server::stop_flag)
+				{
+					std::cerr << "[Server] Poll error: " << strerror(errno) << "\n";
 					break;
+				}
 				continue; // retry poll
 			}
 			std::cerr << "[Server] Poll error: " << strerror(errno) << "\n";
@@ -483,6 +492,46 @@ void Server::write_data_to_socket(int i)
 	
 }
 
+void Server::add_to_poll_fds(int cleint_fd)
+{
+    pollfd p;
+    p.fd = cleint_fd;
+    p.events = POLLIN | POLLOUT;
+    p.revents = 0;
+
+    poll_fds.push_back(p);
+}
+
+void Server::del_from_poll_fds(int i)
+{
+    poll_fds[i] = poll_fds.back();
+    poll_fds.pop_back();
+}
+
+void Server::set_poll_events(int fd, short events)
+{
+    for (size_t i = 0; i < poll_fds.size(); i++)
+    {
+        if (poll_fds[i].fd == fd)
+        {
+            poll_fds[i].events = events;
+            return;
+        }
+    }
+}
+void Server::cleanup_client(int index, int fd)
+{
+    close(fd);
+    http_req.erase(fd);
+    del_from_poll_fds(index);
+}
+
+void Server::signal_handler(int sig)
+{
+	(void)sig;
+	Server::stop_flag = 1;
+}
+
 //void	Server::read_data_from_socket(int i)
 //{
 	
@@ -648,44 +697,3 @@ void Server::write_data_to_socket(int i)
 //}
 
 
-
-
-
-void Server::add_to_poll_fds(int cleint_fd)
-{
-    pollfd p;
-    p.fd = cleint_fd;
-    p.events = POLLIN | POLLOUT;
-    p.revents = 0;
-
-    poll_fds.push_back(p);
-}
-
-void Server::del_from_poll_fds(int i)
-{
-    poll_fds[i] = poll_fds.back();
-    poll_fds.pop_back();
-}
-
-void Server::set_poll_events(int fd, short events)
-{
-    for (size_t i = 0; i < poll_fds.size(); i++)
-    {
-        if (poll_fds[i].fd == fd)
-        {
-            poll_fds[i].events = events;
-            return;
-        }
-    }
-}
-void Server::cleanup_client(int index, int fd)
-{
-    close(fd);
-    http_req.erase(fd);
-    del_from_poll_fds(index);
-}
-
-void Server::signal_handler(int)
-{
-    Server::stop_flag = 1;
-}
