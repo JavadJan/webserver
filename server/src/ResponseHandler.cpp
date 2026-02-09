@@ -111,17 +111,47 @@ static std::string resolvePath(const std::string &req_path, const Location& loca
 
     if (req_path.find(location.path) == 0)
     {
-        root += "/";
-        root += req_path.substr(location.path.length());
+        //root += "/";
+        //root += req_path.substr(location.path.length());
+        //root += location.path;
+        root += req_path;
 		std::cout << "root: " << root << std::endl;
     }
     else
     {
         root += req_path;
-		std::cout << "root: " << root << std::endl;
+		std::cout << "root1: " << root << std::endl;
     }
     return root;
 }
+
+
+//static std::string resolvePath(const std::string &req_path, const Location& location)
+//{
+//    std::map<std::string, std::vector<std::string> >::const_iterator it =
+//        location.directive.find("root");
+
+//    if (it == location.directive.end() || it->second.empty())
+//        return ""; // let caller handle 404 / 500
+
+//    std::string root = it->second[0];
+
+//    if (req_path.find(location.path) == 0)
+//    {
+//        root += "/";
+//        root += req_path.substr(location.path.length());
+//        //root += location.path;
+//		std::cout << "root: " << root << std::endl;
+//    }
+//    else
+//    {
+//        root += req_path;
+//		std::cout << "root1: " << root << std::endl;
+//    }
+//    return root;
+//}
+
+
 
 bool ResponseHandler::path_exist(std::string full_path)
 {
