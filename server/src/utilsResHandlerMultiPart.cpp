@@ -106,14 +106,20 @@ static PartInfo parsePartHeaders(const std::string &part)
     return info;
 }
 
-
-static void saveFile(std::string filename, std::string content)
+static void saveFile(const std::string& basePath, std::string filename, std::string content)
 {
-	std::string path = "./tmp/www/upload/" + filename; 
-	std::cout << "save file in " << path << std::endl;
-	std::ofstream file(path.c_str(), std::ios::binary);
-	file.write(content.data(), content.size());
+    std::string path = basePath + "/" + filename;
+    std::cout << "save file in " << path << std::endl;
+    std::ofstream file(path.c_str(), std::ios::binary);
+    file.write(content.data(), content.size());
 }
+// static void saveFile(std::string filename, std::string content)
+// {
+// 	// std::string path = "./tmp/www/upload/" + filename; 
+// 	// std::cout << "save file in " << path << std::endl;
+// 	// std::ofstream file(path.c_str(), std::ios::binary);
+// 	// file.write(content.data(), content.size());
+// }
 
 void ResponseHandler::handleUpload(const HttpRequest &req, const Config &server)
 {
@@ -135,11 +141,13 @@ void ResponseHandler::handleUpload(const HttpRequest &req, const Config &server)
         if (info.filename != "")
         {
             // 4. Save file
-            saveFile(info.filename, info.content);
+            // saveFile(info.filename, info.content);
+            saveFile(full_path, info.filename, info.content);
         }
     }
 
     // 5. Respond
     res.setStatusCode(201);
+    res.setContType(getMimeType(".txt"));
     res.setBody("");
 }

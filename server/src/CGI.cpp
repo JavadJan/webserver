@@ -298,7 +298,7 @@ bool ResponseHandler::isCGI()
 }
 
 
-#pragma region 
+// #pragma region 
 /* ----------------------------------------- */
 /* 											 */
 /* 			SETTER AND GETTER				 */
@@ -323,4 +323,4 @@ const std::string& ResponseHandler::getBodyCGI() const
 {
 	return bodyCGI;
 }
-#pragma endregion
+// #pragma endregion

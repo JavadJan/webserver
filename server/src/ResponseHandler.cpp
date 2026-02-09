@@ -64,7 +64,7 @@ static Location matchLocation(const Config& server, const std::string& path)
     for (size_t i = 0; i < server.locations.size(); i++)
     {
         const std::string& p = server.locations[i].path;
-        if (path.find(p) == 0 && p.size() > longest)
+        if (path.find(p) == 0 && p.size() >= longest)
         {
             best = server.locations[i];
             longest = p.size();
@@ -107,20 +107,21 @@ static std::string resolvePath(const std::string &req_path, const Location& loca
     if (it == location.directive.end() || it->second.empty())
         return ""; // let caller handle 404 / 500
 
-    std::string root = it->second[0];
+    return it->second[0] + req_path;
+    // std::string root = it->second[0];
 
-    if (req_path.find(location.path) == 0)
-    {
-        root += "/";
-        root += req_path.substr(location.path.length());
-		std::cout << "root: " << root << std::endl;
-    }
-    else
-    {
-        root += req_path;
-		std::cout << "root: " << root << std::endl;
-    }
-    return root;
+    // if (req_path.find(location.path) == 0)
+    // {
+    //     root += "/";
+    //     root += req_path.substr(location.path.length());
+	// 	std::cout << "root: " << root << std::endl;
+    // }
+    // else
+    // {
+    //     root += req_path;
+	// 	std::cout << "root: " << root << std::endl;
+    // }
+    // return root;
 }
 
 bool ResponseHandler::path_exist(std::string full_path)
@@ -144,12 +145,12 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	}
 	struct Location location = matchLocation(server, req.getPath());
 	std::cout << "req.path that is match: " << location.path << std::endl;
-	if (location.empty)
-	{
-		res.setStatusCode(404);
-		std::cout << "send: 404\n";
-		return ;
-	}
+	// if (location.empty)
+	// {
+	// 	res.setStatusCode(404);
+	// 	std::cout << "send: 404\n";
+	// 	return ;
+	// }
 	
 	this->setLocation(location);
 	
@@ -160,6 +161,7 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	if (!methodAllowed(location, req.getMethod()))
 	{
 		res.setStatusCode(405);
+        res.setContType(getMimeType(".html"));
 		std::cout << "send:	respond 405 " <<std::endl;
 		return;
 	}
@@ -234,7 +236,12 @@ std::string ResponseHandler::generateAutoindex(const std::string& dirpath, const
         if (S_ISDIR(st.st_mode))
             name += "/";
 
-        html << "<a href=\"" << name << "\">" << name << "</a>\n";
+        // html << "<a href=\"" << name << "\">" << name << "</a>\n";
+        std::string urlpathSlash = urlpath;
+        if (urlpathSlash[urlpathSlash.size() - 1] != '/')
+            urlpathSlash += '/';
+
+        html << "<a href=\"" << urlpathSlash << name << "\">" << name << "</a>\n";
     }
 
     html << "</pre><hr></body></html>";
@@ -400,11 +407,15 @@ void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
     }
 
     // Upload enabled?
-    if (uploadEnabled(this->loc))
+    if (!uploadEnabled(this->loc))
     {
-        handleUpload(req, server);
+        res.setStatusCode(403);
+        res.setContType(getMimeType(".html"));
         return;
     }
+
+    handleUpload(req, server);
+    return;
 
     // Check filesystem -> absolute path
     struct stat st;
@@ -412,6 +423,7 @@ void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
     {
         // Path does not exist
         res.setStatusCode(404);
+        res.setContType(getMimeType(".html"));
         return;
     }
 
@@ -419,6 +431,7 @@ void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
     if (S_ISREG(st.st_mode))
     {
         res.setStatusCode(405); // Method Not Allowed
+        res.setContType(getMimeType(".html"));
         return;
     }
 
@@ -451,11 +464,13 @@ void ResponseHandler::handlePost(const HttpRequest &req, const Config &server)
         if (autoIndex(loc))
         {
             res.setStatusCode(405); // Method Not Allowed
+            res.setContType(getMimeType(".html"));
             return;
         }
 
         // Directory exists but no index → POST not allowed
         res.setStatusCode(405);
+        res.setContType(getMimeType(".html"));
         return;
     }
 

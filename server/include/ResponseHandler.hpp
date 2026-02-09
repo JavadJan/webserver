@@ -17,6 +17,8 @@
 #include "./Server.hpp" // for response to
 #include <dirent.h>
 
+std::string getMimeType(const std::string& path);
+
 struct PartInfo
 {
 	std::string content;
