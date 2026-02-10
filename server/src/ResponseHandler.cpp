@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   ResponseHandler.cpp                                :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:54:03 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:54:04 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/ResponseHandler.hpp"
 #include "../include/Config.hpp" // to use location and config
 #include <fstream>
@@ -90,12 +102,13 @@ static bool methodAllowed(const Location& location, const std::string& method)
 	{
         return true; // no restriction = allow all
 	}
-	std::cout << "methods : " ;
+    if(BUG)
+	{std::cout << "methods : " ;
 	for (size_t i = 0; i < it->second.size(); i++)
 	{
 		std::cout << it->second[i] << " " ;
 	}
-	std::cout << std::endl;
+	std::cout << std::endl;}
     return find_method(it->second, method);
 }
 
@@ -136,15 +149,17 @@ bool ResponseHandler::path_exist(std::string full_path)
 	that signel http_req pass here and buil respons for it */
 void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 {
-	std::cout << "what is request: " << req.getBody() << std::endl;
-	std::cout << "what is req path: " << req.getPath() << std::endl;
+    if(BUG)
+	{std::cout << "what is request: " << req.getBody() << std::endl;
+	std::cout << "what is req path: " << req.getPath() << std::endl;}
 	if (req.getPath().empty())
 	{
 		res.setStatusCode(400);
 		return ;
 	}
 	struct Location location = matchLocation(server, req.getPath());
-	std::cout << "req.path that is match: " << location.path << std::endl;
+    if(BUG)
+	{std::cout << "req.path that is match: " << location.path << std::endl;}
 	// if (location.empty)
 	// {
 	// 	res.setStatusCode(404);
@@ -161,7 +176,8 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
     {
         res.setStatusCode(301);
         res.setHeader("Location", "/");
-        std::cout << "redirect:	respond 301 " << std::endl;
+        if(BUG)
+        {std::cout << "redirect:	respond 301 " << std::endl;}
         return;
     }
 
@@ -169,7 +185,8 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	{
 		res.setStatusCode(405);
         res.setContType(getMimeType(".html"));
-		std::cout << "send:	respond 405 " <<std::endl;
+        if(BUG)
+		{std::cout << "send:	respond 405 " <<std::endl;}
 		return;
 	}
 
@@ -194,7 +211,8 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 	else 
 	{
 		res.setStatusCode(501);
-		std::cout << "respond 501\n";
+        if(BUG)
+		{std::cout << "respond 501\n";}
 		return ;
 	}	
 }
@@ -280,10 +298,12 @@ std::string getMimeType(const std::string& path)
 void ResponseHandler::handleGet(const HttpRequest& req)
 {
 	struct stat st;
-	std::cout << "full path: " << full_path << std::endl;
+    if(BUG)
+	{std::cout << "full path: " << full_path << std::endl;}
 	if (!path_exist(full_path)) // ./tmp/www/form does not exist
 	{
-		std::cout << "PATH does not exist: " << res.getStatusCode();
+        if(BUG)
+		{std::cout << "PATH does not exist: " << res.getStatusCode();}
 		res.setStatusCode(404);
 		return;
 	}
@@ -332,7 +352,8 @@ void ResponseHandler::handleGet(const HttpRequest& req)
     res.setStatusCode(200); // set the correct status
     res.setBody(buffer.str());
 	res.setContType(getMimeType(full_path));
-	std::cout << "CONTENT TYPE: " << req.getContentType() << std::endl;
+    if(BUG)
+    	std::cout << "CONTENT TYPE: " << req.getContentType() << std::endl;
 }
 
 void ResponseHandler::handleDelete()
@@ -525,7 +546,8 @@ void ResponseHandler::renderErrorPage(const HttpRequest &req, const Config& serv
 	if (code != 0)
 		res.setStatusCode(code);
 
-	std::cout << "status code renderErrorPage: " << res.getStatusCode() << std::endl;
+    if(BUG)
+	{std::cout << "status code renderErrorPage: " << res.getStatusCode() << std::endl;}
 	(void)req;
     std::map<std::string, std::vector<std::string> >::const_iterator it =
         server.directives.find("error_page");

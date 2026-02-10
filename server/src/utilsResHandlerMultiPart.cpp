@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   utilsResHandlerMultiPart.cpp                       :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:54:10 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:54:11 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/ResponseHandler.hpp"
 
 static std::string extractBoundary(const std::string &ctype)
@@ -109,7 +121,8 @@ static PartInfo parsePartHeaders(const std::string &part)
 static void saveFile(const std::string& basePath, std::string filename, std::string content)
 {
     std::string path = basePath + "/" + filename;
-    std::cout << "save file in " << path << std::endl;
+    if(BUG)
+    {std::cout << "save file in " << path << std::endl;}
     std::ofstream file(path.c_str(), std::ios::binary);
     file.write(content.data(), content.size());
 }

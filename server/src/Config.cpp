@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Config.cpp                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:53:52 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:53:53 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/Config.hpp"
 
 Location::Location():empty(true)
@@ -160,7 +172,8 @@ std::vector<struct Config> parseConfig(const char* conf)
                     throw std::runtime_error("Invalid listen directive");
 
                 currentServer.host = token.substr(0, pos);
-				std::cout << "detect server with port: " << token.substr(pos + 1) << std::endl;
+				if(BUG)
+				{std::cout << "detect server with port: " << token.substr(pos + 1) << std::endl;}
                 currentServer.port = token.substr(pos + 1);
             }
             else

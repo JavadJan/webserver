@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Server.cpp                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:54:05 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:54:06 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 //#include "../include/ParsedData.hpp"
 #include "../include/Server.hpp"
 #include "../include/Config.hpp"
@@ -150,9 +162,12 @@ int Server::create_socket_bind()
         }
 		set_nonblocking(server_fd);
 		// Bind socket to address and port
-		std::cout << "Binding server[" << i << "] on port " 
+		if(BUG)
+		{std::cout << "Binding server[" << i << "] on port " 
           		<< servers[i].port 
-          		<< " using fd=" << server_fd << std::endl;
+          		<< " using fd=" << server_fd << std::endl;}
+		std::cout 	<< "Binding server[" << i << "] on port " 
+					<< servers[i].port << std::endl;
 
 		//std::cout << "fd: " << server_fd << " addr: " << res[i]->ai_addr << std::endl;
 		status = bind(server_fd,  res[i]->ai_addr, res[i]->ai_addrlen);
@@ -223,10 +238,11 @@ void Server::run()
 		else if (status == 0)
 		{
 			// None of the sockets are ready
-			std::cout << "[Server on port: " ;
+			if(BUG)
+			{std::cout << "[Server on port: " ;
 			for (size_t i = 0; i < servers.size(); i++)
 				std::cout << servers[i].port << " ";
-			std::cout << std::endl;
+			std::cout << std::endl;}
 			continue ; // skip the rest of loop after this line, start again to socket
 		}
 
@@ -304,7 +320,7 @@ void	Server::accept_new_connection(int listen_fd)
 		set_nonblocking(new_fd);
 	
 		add_to_poll_fds(new_fd); // no need to pass this fd
-		std::cout << "[Server] Accepted new connection on client socket" <<  new_fd << std::endl;
+		std::cout << "[Server] Accepted new connection on client socket " <<  new_fd << std::endl;
 		http_req.insert(std::make_pair(new_fd, HttpRequest()));
 		http_req[new_fd].setServerConfig(&serverfd_config[listen_fd]);
 		
@@ -323,8 +339,9 @@ void Server::read_data_from_socket(int i)
 
     HttpRequest &req = http_req[sender_fd];
 
-    std::cout << "STATE before recv on fd " << sender_fd
-              << ": " << req.getState() << std::endl;
+	if(BUG)
+    {std::cout << "STATE before recv on fd " << sender_fd
+              << ": " << req.getState() << std::endl;}
 
     // If we are currently sending a response, ignore reads
     if (req.getState() == HttpRequest::SENDING)
@@ -339,8 +356,9 @@ void Server::read_data_from_socket(int i)
 
     if (bytes_read > 0)
     {
-        std::cout << "\n[" << sender_fd << "] Got message: start ----->\n"
-                  << std::string(chunk, sizeof(chunk)) << "\n<----------end request\n\n";
+		if(BUG)
+        {std::cout << "\n[" << sender_fd << "] Got message: start ----->\n"
+                  << std::string(chunk, sizeof(chunk)) << "\n<----------end request\n\n";}
 
         // Append to request buffer
         req.appendBuffer(chunk, bytes_read);
@@ -348,8 +366,9 @@ void Server::read_data_from_socket(int i)
         // Hard header size limit
         if (req.getHeaderSize() > MAX_HEADER_SIZE)
         {
-            std::cout << "header size too large: "
-                      << req.getHeaderSize() << std::endl;
+			if(BUG)
+            { std::cout << "header size too large: "
+                      << req.getHeaderSize() << std::endl;}
             req.setStatusCode(431);
             req.setState(HttpRequest::ERROR);
         }
@@ -358,9 +377,10 @@ void Server::read_data_from_socket(int i)
         if (req.getState() != HttpRequest::ERROR)
             fsm(sender_fd);
 
-        std::cout << "AFTER FSM state: " << req.getState()
+		if(BUG)
+        {std::cout << "AFTER FSM state: " << req.getState()
                   << ", buffer size " << req.getBuffer().size()
-                  << ", query: " << req.getQuery() << " MAX \n";
+                  << ", query: " << req.getQuery() << " MAX \n";}
 
         req.setClientSocket(sender_fd);
 
@@ -368,8 +388,9 @@ void Server::read_data_from_socket(int i)
         if (req.getState() == HttpRequest::DONE ||
             req.getState() == HttpRequest::ERROR)
         {
-            std::cout << "\n\nHTTP REQ AFTER FSM: "
-                      << req.getStatusCode() << std::endl;
+			if(BUG)
+            {std::cout << "\n\nHTTP REQ AFTER FSM: "
+                      << req.getStatusCode() << std::endl;}
 
             ResponseHandler rh;
             std::string response;
@@ -377,8 +398,9 @@ void Server::read_data_from_socket(int i)
             // Only call controller if not in ERROR
             if (req.getState() != HttpRequest::ERROR)
             {
-                std::cout << "\033[1;33m state " << req.getState()
-                          << " can be body state\033[0m\n";
+				if(BUG)
+                {std::cout << "\033[1;33m state " << req.getState()
+                          << " can be body state\033[0m\n";}
                 rh.controller(req, *req.getServerConfig());
             }
 
@@ -388,7 +410,8 @@ void Server::read_data_from_socket(int i)
             rh.finalize(req, *req.getServerConfig());
             response = rh.getResponse().toString();
 
-            std::cout << "response: " << response << std::endl;
+			if(BUG)
+            {std::cout << "response: " << response << std::endl;}
 
             req.sendBuffer = response;
             req.sendOffset = 0;
@@ -418,9 +441,10 @@ void Server::read_data_from_socket(int i)
 
         if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
-            // No data available now
+			if(BUG)
+            {// No data available now
             std::cout << "state is " << req.getState()
-                      << " but errno " << strerror(errno) << "\n";
+                      << " but errno " << strerror(errno) << "\n";}
             return;
         }
 
@@ -465,7 +489,8 @@ void Server::write_data_to_socket(int i)
         req.sendBuffer.clear();
         req.sendOffset = 0;
 
-        std::cout << fd << " prepare to READ after send occured\n";
+		if(BUG)
+        {std::cout << fd << " prepare to READ after send occured\n";}
 
         // Decide whether to close or keep-alive
         std::map<std::string, std::string>::const_iterator it =
@@ -480,14 +505,17 @@ void Server::write_data_to_socket(int i)
             cleanup_client(i, fd);
             return;
         }
-		std::cout << "[TEST] hanging here\n";
+		if(BUG)
+		{std::cout << "[TEST] hanging here\n";}
         // Keep-alive: prepare for next request
         req.resetForNextRequest();      // clears state, body, etc.
-		std::cout << "[TEST] after resetForRequest() hanging here\n";
+		if(BUG)
+		{std::cout << "[TEST] after resetForRequest() hanging here\n";}
         set_poll_events(fd, POLLIN);    // only read next
-		std::cout << "[TEST] after set_poll_event() hanging here \n" 
+		if(BUG)
+		{std::cout << "[TEST] after set_poll_event() hanging here \n" 
 			<< "content-length: " << req.getContetnLen() << "body size: " << req.getBody().size() << std::endl;
-		//return ;
+		}//return ;
     }
 	
 }

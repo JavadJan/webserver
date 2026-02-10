@@ -1,4 +1,17 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   HttpRequest.cpp                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:53:56 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:53:57 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/HttpRequest.hpp"
+#include "../include/Config.hpp"
 
 HttpRequest::HttpRequest()
 :sendBuffer() , sendOffset(0),
@@ -17,7 +30,8 @@ connection_close(false),
 statusCode(0),
 header_size(0)
 {
-	std::cout << "default constructor called" << state << std::endl;
+    if(BUG)
+	{std::cout << "default constructor called" << state << std::endl;}
 }
 HttpRequest::~HttpRequest()
 {
@@ -281,7 +295,8 @@ void HttpRequest::appendBuffer(const char* data, int bytes_read)
         {
             header_size = pos + 4;
             header_done = true;
-            std::cout << "HEADER SIZE: " << header_size << std::endl;
+            if(BUG)
+            {std::cout << "HEADER SIZE: " << header_size << std::endl;}
         }
     }
 }

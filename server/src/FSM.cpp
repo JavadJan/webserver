@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   FSM.cpp                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:53:10 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:53:11 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/Server.hpp"
 #include "../include/HttpRequest.hpp"
 #include "../include/Config.hpp"
@@ -268,7 +280,8 @@ std::string Server::unchunkedBody(const std::string& buf)
     std::string out = "";
     std::string buffer = buf;
 
-    std::cout << "WHOLE BODY: " << buffer << "|" << std::endl;
+    if(BUG)
+    {std::cout << "WHOLE BODY: " << buffer << "|" << std::endl;}
 
     while (!buffer.empty())
     {
@@ -282,7 +295,8 @@ std::string Server::unchunkedBody(const std::string& buf)
         char* endPtr;
         long chunk_size = strtol(hex.c_str(), &endPtr, 16);
         
-        std::cout << "Detected hex: [" << hex << "] size: " << chunk_size << std::endl;
+        if(BUG)
+        {std::cout << "Detected hex: [" << hex << "] size: " << chunk_size << std::endl;}
 
         // 3. Move buffer past the size line (\r\n)
         buffer.erase(0, line_end + 2);
@@ -302,7 +316,8 @@ std::string Server::unchunkedBody(const std::string& buf)
         std::string chunk = buffer.substr(0, chunk_size);
         out.append(chunk);
         
-        std::cout << "Extracted Chunk: [" << chunk << "]" << std::endl;
+        if(BUG)
+        {std::cout << "Extracted Chunk: [" << chunk << "]" << std::endl;}
 
         // 7. Erase the chunk PLUS the \r\n that follows the chunk
         // RFC: chunk-data + CRLF
@@ -316,7 +331,8 @@ std::string Server::unchunkedBody(const std::string& buf)
 
 void Server::fsm(int sock_fd)
 {
-    std::cout << "arived to fsm [STATE]: " << http_req[sock_fd].getState() << std::endl;
+    if(BUG)
+    {std::cout << "arived to fsm [STATE]: " << http_req[sock_fd].getState() << std::endl;}
 
     while (true)
     {
@@ -340,7 +356,8 @@ void Server::fsm(int sock_fd)
                 return; // need more data
 
             std::string req_line = buf.substr(0, pos);
-            std::cout << "request line: " << req_line << std::endl;
+            if(BUG)
+            {std::cout << "request line: " << req_line << std::endl;}
 
             try
             {
@@ -349,10 +366,11 @@ void Server::fsm(int sock_fd)
             catch (const std::exception &e)
             {
                 std::string s = e.what();
-                std::cout << "🚨🚨🚨 ERROR in parse request line: "
+                if(BUG)
+                {std::cout << "🚨🚨🚨 ERROR in parse request line: "
                           << "method: " << req.getMethod()
                           << ", path: " << req.getPath()
-                          << ", protocol: " << req.getProtocol() << std::endl;
+                          << ", protocol: " << req.getProtocol() << std::endl;}
 
                 int code = error_to_code(s);
                 if (code < 0) code = 400;
@@ -367,28 +385,32 @@ void Server::fsm(int sock_fd)
             if (!validateRequestLine(sock_fd))
             {
                 req.setState(HttpRequest::ERROR);
-                std::cout << "🚨🚨🚨 ERROR in validation request line "
+                if(BUG)
+                {std::cout << "🚨🚨🚨 ERROR in validation request line "
                           << req.getMethod() << " "
                           << req.getPath() << " "
-                          << req.getProtocol() << std::endl;
+                          << req.getProtocol() << std::endl;}
                 return;
             }
 
             req.setState(HttpRequest::HEADER);
-            std::cout << "[REQ_LINE STATE] has completed, Transit to HEADER\n\n";
+            if(BUG)
+            {std::cout << "[REQ_LINE STATE] has completed, Transit to HEADER\n\n";}
             continue;
         }
 
         case HttpRequest::HEADER:
         {
             const std::string &buf = req.getBuffer();
-            std::cout << req.getHeaderSize() << "✴️✴️✴️ HEADER STATE ✴️✴️✴️\n";
+            if(BUG)
+            {std::cout << req.getHeaderSize() << "✴️✴️✴️ HEADER STATE ✴️✴️✴️\n";}
 
             if (buf.size() > MAX_HEADER_SIZE)
             {
                 req.setStatusCode(431);
                 req.setState(HttpRequest::ERROR);
-                std::cout << "🚨🚨🚨 ERROR in header size " << buf.size() << std::endl;
+                if(BUG)
+                {std::cout << "🚨🚨🚨 ERROR in header size " << buf.size() << std::endl;}
                 return;
             }
 
@@ -413,8 +435,9 @@ void Server::fsm(int sock_fd)
             if (!validateHeaders(sock_fd))
             {
                 req.setState(HttpRequest::ERROR);
-                std::cout << "🚨🚨🚨 ERROR: validation header "
-                          << req.getStatusCode() << std::endl;
+                if(BUG)
+                {std::cout << "🚨🚨🚨 ERROR: validation header "
+                          << req.getStatusCode() << std::endl;}
                 return;
             }
 
@@ -451,7 +474,8 @@ void Server::fsm(int sock_fd)
             else
             {
                 // No Content-Length → no body
-				std::cout << "nobody, but might chunked\n";
+                if(BUG)
+				{std::cout << "nobody, but might chunked\n";}
                 req.setState(HttpRequest::DONE);
             }
 
@@ -461,7 +485,8 @@ void Server::fsm(int sock_fd)
 
         case HttpRequest::BODY:
         {
-			std::cout << "[LOG IN STATE BODY] getBuffer: " << req.getBuffer().size() << "\n";
+            if(BUG)
+			{std::cout << "[LOG IN STATE BODY] getBuffer: " << req.getBuffer().size() << "\n";}
             const std::string &buf = req.getBuffer();
 			std::string body;
 			size_t need = req.getContetnLen();
@@ -478,12 +503,14 @@ void Server::fsm(int sock_fd)
 				
 				if (!validateBody(sock_fd, body))
 				{
-					std::cout << "ERROR IN BODY VALIDATION BODY \n"; 
+                    if(BUG)
+					{std::cout << "ERROR IN BODY VALIDATION BODY \n"; }
 					req.setState(HttpRequest::ERROR);
 					req.shouldClose = true;
 					return;
 				}
-				std::cout << "[LOG IN BODY STATE]  no error after validation? : " << body << "\n";
+                if(BUG)
+				{std::cout << "[LOG IN BODY STATE]  no error after validation? : " << body << "\n";}
 	
 				req.setBody(body);
 				consume(0, need, sock_fd);
@@ -530,8 +557,9 @@ void Server::fsm(int sock_fd)
         case HttpRequest::ERROR:
         {
             req.shouldClose = true;
-            std::cout << "🚨🚨🚨 ERROR: final state, status "
-                      << req.getStatusCode() << std::endl;
+            if(BUG)
+            {std::cout << "🚨🚨🚨 ERROR: final state, status "
+                      << req.getStatusCode() << std::endl;}
             return;
         }
 

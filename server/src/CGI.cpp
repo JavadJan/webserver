@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   CGI.cpp                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:53:50 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:53:51 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/ResponseHandler.hpp"
 
 void ResponseHandler::parseOutBufferCGI(const std::string& out)
@@ -63,7 +75,8 @@ std::string ResponseHandler::scriptCGI()
 	{
 		if (v[i] == ext)
 		{
-			std::cout << "CGI file to run: "  << v[i+ 1] << "ext: " << v[i] << std::endl;
+			if(BUG)
+			{std::cout << "CGI file to run: "  << v[i+ 1] << "ext: " << v[i] << std::endl;}
 			this->setCGIScript(v[i + 1]); // /usr/bin/
             return v[i + 1];
 		}
@@ -131,14 +144,16 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		NULL
 	};
 
-	std::cout << "full_path to run script: " << full_path << std::endl;
-	std::cout << "body: " << req.getBody() << std::endl;
+	if(BUG)
+	{std::cout << "full_path to run script: " << full_path << std::endl;
+	std::cout << "body: " << req.getBody() << std::endl;}
 	std::string outBuffer;
 	int state = pipe(out_fd);
 	int stateIn = pipe(in_fd);
 	if (state < 0 || stateIn < 0)
 	{
-		std::cout << "Failed in CGI, [creation pipe]" << strerror(errno) << std::endl;
+		if(BUG)
+		{std::cout << "Failed in CGI, [creation pipe]" << strerror(errno) << std::endl;}
 		delete[] script;
 		for (size_t i = 0; i < env.size(); ++i)
 			delete[] env[i];
@@ -148,7 +163,8 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 	pid_t pid = fork();
 	if (pid < 0)
 	{
-		std::cout << "Failed to create child process: " << strerror(errno) << std::endl;
+		if(BUG)
+		{std::cout << "Failed to create child process: " << strerror(errno) << std::endl;}
 		delete[] script;
 		for (size_t i = 0; i < env.size(); ++i)
 			delete[] env[i];
@@ -167,7 +183,8 @@ void ResponseHandler::handleCGI(const HttpRequest &req, const Config &server)
 		close(out_fd[0]);
 		if (execve(script, argv, &env[0]) == -1)
 		{
-			std::cout << "Failed to execve: " << strerror(errno) << std::endl;
+			if(BUG)
+			{std::cout << "Failed to execve: " << strerror(errno) << std::endl;}
 			_exit(1);
 			//return ;
 		}

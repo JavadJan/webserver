@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   main.cpp                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:53:58 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:53:59 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/Server.hpp"
 #include "../include/Config.hpp"
 //#include "../include/ParsedData.hpp"
@@ -36,7 +48,8 @@ int	main(int ac, char *argv[])
 	try
 	{
 		std::vector<struct Config> serversConfig = parseConfig(argv[1]);
-		std::cout << serversConfig[0].port << std::endl;
+		if(BUG)
+		{std::cout << serversConfig[0].port << std::endl;}
 		
 		Server server(serversConfig);
 		server.run();

@@ -1,4 +1,18 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Response.cpp                                       :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/02/10 17:54:01 by asemykin          #+#    #+#             */
+/*   Updated: 2026/02/10 17:54:02 by asemykin         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/Response.hpp"
+#include "../include/Config.hpp"
+
 //------------------------------#
 //			constructors		#
 //------------------------------#
@@ -53,7 +67,8 @@ void Response::setAutoindex(bool autoIndex)
 } 
 std::string Response::reasonPhrase(int code)
 {
-	std::cout << "status code in creattion res: " << code << std::endl;
+	if(BUG)
+	{std::cout << "status code in creattion res: " << code << std::endl;}
     switch (code)
     {
         case 200: return "OK";
@@ -119,7 +134,7 @@ std::string Response::toString()
     
 	if(!ContentType.empty())
 		ss << "Content-Type: " << getContType() << "\r\n";
-	//ss << "Set-Cookie: yummy_cookie=chocolate\r\n";
+	ss << "Set-Cookie: yummy_cookie=chocolate\r\n";
     ss << "\r\n";
 	ss << body;
 
