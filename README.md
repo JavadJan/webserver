@@ -162,7 +162,24 @@ Each error returns the appropriate HTTP status code and custom error page when c
 
 No external networking or HTTP libraries are used.
 
-## Autors & How AI was helpful in this project?
+## Recources
+
+https://www.codequoi.com/en/sockets-and-network-programming-in-c/#sources-and-further-reading
+
+https://youtu.be/bdIiTxtMaKA?si=JiQrYKLevrn8Qc5P
+
+https://youtu.be/iInUBOVeBCc?si=dKDa0u5wekWuqqnp
+
+https://youtu.be/q8OleYuqntY?si=TfxLAsJsAPiLgjbr
+
+https://youtube.com/playlist?list=PL6KMWPQP_DM9Y7IgaEWa_OHAl3RkAQwqH&si=HoxR1a_vUFnWZGpt
+
+https://developer.mozilla.org/en-US/docs/Web/HTTP
+
+AI to enhance understanding
+
+## Autors
+
 - Javad:
 - Anatoli:
 - Maryam:
