@@ -65,6 +65,9 @@ std::vector<struct Config> parseConfig(const char* conf)
 	//define config
 	struct Config currentServer;
 
+	// if multiple directive in the same server.
+	bool listen_seen = false;
+
 	enum STATE {NONE, SERVER, LOCATOIN} state = NONE;
 
 	// iteration line by line on file
@@ -91,6 +94,7 @@ std::vector<struct Config> parseConfig(const char* conf)
 			state = SERVER;
 			currentServer = Config();
 			currentServer.empty = false; // check later? 
+			listen_seen = false;
 			continue;
 		}
 
@@ -142,9 +146,15 @@ std::vector<struct Config> parseConfig(const char* conf)
 			// in server state has first line and rest
             if (key == "listen")
             {
+				if(listen_seen)
+					throw std::runtime_error("Multiple listen directive in one server are not supported");
+
+				listen_seen = true;
+
 				ss >> token; // get the line with :
 				if (token.find(";") != std::string::npos)
 					token = removeSemicolon(token);
+
                 size_t pos = token.find(':');
                 if (pos == std::string::npos)
                     throw std::runtime_error("Invalid listen directive");

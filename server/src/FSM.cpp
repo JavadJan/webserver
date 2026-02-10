@@ -690,7 +690,10 @@ bool Server::validateHeaders(int fd)
 
             if (mit != conf->directives.end())
             {
-                long long max_size = atoll(mit->second[0].c_str());
+
+                // long long max_size = atoll(mit->second[0].c_str());
+                // if multiple max_body_size entries, take the last one
+                long long max_size = atoll(mit->second.back().c_str());
                 if (body_size > max_size)
                 {
                     req.setStatusCode(413);
@@ -721,8 +724,10 @@ bool Server::validateBody(int fd, const std::string &body)
         std::map<std::string, std::vector<std::string> >::const_iterator it =
             config->directives.find("max_body_size");
 
+        // if multiple max_body_size entries, take the last one
         if (it != config->directives.end() && !it->second.empty())
-            max_body_size = static_cast<size_t>(atoll(it->second[0].c_str()));
+            max_body_size = static_cast<size_t>(atoll(it->second.back().c_str()));
+        // max_body_size = static_cast<size_t>(atoll(it->second[0].c_str()));
     }
 
     if (max_body_size > 0 && len > max_body_size)

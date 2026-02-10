@@ -157,6 +157,13 @@ void ResponseHandler::controller(const HttpRequest &req, struct Config server)
 		//full_path = resolvePath(req.getPath(), location); // 
 	full_path = resolvePath(req.getPath(), location);
 	
+    if(req.getPath() == "/redirect")
+    {
+        res.setStatusCode(301);
+        res.setHeader("Location", "/");
+        std::cout << "redirect:	respond 301 " << std::endl;
+        return;
+    }
 
 	if (!methodAllowed(location, req.getMethod()))
 	{

@@ -59,6 +59,7 @@ std::string Response::reasonPhrase(int code)
         case 200: return "OK";
         case 201: return "Created";
         case 204: return "No Content";
+		case 301: return "Moved Permanently";
 		case 400: return "Bad Request!";
         case 404: return "Not Found";
         case 403: return "Forbidden";
@@ -109,10 +110,15 @@ std::string Response::toString()
     std::stringstream ss;
 
     ss << "HTTP/1.1 " << getStatusCode() << " " << reasonPhrase(getStatusCode()) << "\r\n";
-    ss << "Content-Length: " << body.size() << "\r\n";
-    ss << "Content-Type: ";
-	ss << getContType();
-	ss << "\r\n";
+    
+	
+	for(std::map<std::string, std::string>::iterator it = header.begin(); it != header.end(); it++)
+		ss << it->first << ": " << it->second << "\r\n";
+	
+	ss << "Content-Length: " << body.size() << "\r\n";
+    
+	if(!ContentType.empty())
+		ss << "Content-Type: " << getContType() << "\r\n";
 	//ss << "Set-Cookie: yummy_cookie=chocolate\r\n";
     ss << "\r\n";
 	ss << body;
