@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   utilsResHandlerMultiPart.cpp                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: asemykin <asemykin@student.42.fr>          +#+  +:+       +#+        */
+/*   By: mkhavari <mkhavari@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/10 17:54:10 by asemykin          #+#    #+#             */
-/*   Updated: 2026/02/10 17:54:11 by asemykin         ###   ########.fr       */
+/*   Updated: 2026/04/15 21:38:08 by mkhavari         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
